@@ -116,15 +116,15 @@ export function PriceChart({
           </defs>
           <XAxis
             dataKey="label"
-            tick={{ fill: "#898781", fontSize: 11 }}
+            tick={{ fill: "var(--tb-ink-muted)", fontSize: 11 }}
             tickLine={false}
-            axisLine={{ stroke: "#383835" }}
+            axisLine={{ stroke: "var(--tb-baseline)" }}
             minTickGap={48}
           />
           <YAxis
             orientation="right"
             domain={["auto", "auto"]}
-            tick={{ fill: "#898781", fontSize: 11 }}
+            tick={{ fill: "var(--tb-ink-muted)", fontSize: 11 }}
             tickLine={false}
             axisLine={false}
             width={64}
@@ -134,7 +134,7 @@ export function PriceChart({
           />
           <Tooltip
             content={<CrosshairTooltip currency={currency} />}
-            cursor={{ stroke: "#898781", strokeDasharray: "3 3" }}
+            cursor={{ stroke: "var(--tb-ink-muted)", strokeDasharray: "3 3" }}
           />
           <Area
             type="monotone"

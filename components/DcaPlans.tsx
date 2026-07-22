@@ -1,95 +1,181 @@
 "use client";
 
 import type { DcaPlan } from "@/lib/types";
+import {
+  orientDca,
+  type DcaOrientation,
+  type DcaStance,
+} from "@/lib/dcaOrientation";
 import { formatCurrency } from "@/lib/format";
-import { AssetLabel } from "@/components/AssetLabel";
+import { assetTitle } from "@/lib/labels";
 
 const CADENCE_LABEL: Record<DcaPlan["cadence"], string> = {
-  weekly: "hebdo",
-  biweekly: "bi-mensuel",
-  monthly: "mensuel",
-  irregular: "irrégulier",
+  weekly: "Hebdo",
+  biweekly: "Bi-mensuel",
+  monthly: "Mensuel",
+  irregular: "Irrégulier",
 };
 
-export function DcaPlans({ plans }: { plans: DcaPlan[] }) {
-  if (!plans.length) {
+const STANCE_TONE: Record<DcaStance, string> = {
+  renforcer:
+    "bg-[color-mix(in_srgb,var(--tb-pos)_12%,transparent)] text-pos",
+  maintenir: "bg-chip text-ink2",
+  alleger:
+    "bg-[color-mix(in_srgb,var(--tb-neg)_12%,transparent)] text-neg",
+  inconnu: "bg-chip text-ink3",
+};
+
+export type DcaPlanRow = {
+  plan: DcaPlan;
+  orientation: DcaOrientation;
+};
+
+function StanceBadge({ o }: { o: DcaOrientation }) {
+  return (
+    <span
+      className={`inline-flex rounded-pill px-2.5 py-1 text-[11.5px] font-bold ${STANCE_TONE[o.stance]}`}
+      title={o.detail}
+    >
+      {o.label}
+    </span>
+  );
+}
+
+function StatusPill({ active }: { active: boolean }) {
+  return (
+    <span
+      className={`inline-flex rounded-pill px-2.5 py-1 text-[11.5px] font-bold ${
+        active
+          ? "bg-[color-mix(in_srgb,var(--tb-pos)_12%,transparent)] text-pos"
+          : "bg-chip text-ink3"
+      }`}
+    >
+      {active ? "Actif" : "Pause"}
+    </span>
+  );
+}
+
+export function DcaPlans({
+  rows,
+  emptyHint,
+}: {
+  rows: DcaPlanRow[];
+  emptyHint?: string;
+}) {
+  if (!rows.length) {
     return (
-      <div className="rounded-xl border border-hairline bg-surface p-4">
-        <h2 className="mb-1 text-sm font-semibold text-ink">DCA / Sparplans</h2>
-        <p className="text-sm text-ink-muted">
-          Aucun sparplan détecté. Réimporte ton CSV Trade Republic pour les
-          matérialiser automatiquement.
-        </p>
+      <div className="rounded-card border border-dashed border-line px-4 py-10 text-center text-sm text-ink2">
+        {emptyHint ??
+          "Aucun sparplan détecté. Importe ton CSV Trade Republic pour les orienter."}
       </div>
     );
   }
 
-  const active = plans.filter((p) => p.active);
-  const paused = plans.filter((p) => !p.active);
-  const monthlyActive = active.reduce((a, p) => a + p.monthlyEur, 0);
+  const ordered = [
+    ...rows.filter((r) => r.plan.active),
+    ...rows.filter((r) => !r.plan.active),
+  ];
 
   return (
-    <div className="rounded-xl border border-hairline bg-surface overflow-hidden">
-      <div className="flex flex-wrap items-end justify-between gap-2 border-b border-hairline px-4 py-3">
-        <div>
-          <h2 className="text-sm font-semibold text-ink">DCA / Sparplans</h2>
-          <p className="text-xs text-ink-muted">
-            Déduits des exécutions « Savings plan » du CSV — réimport = remplacement.
-          </p>
-        </div>
-        <div className="text-right tabular">
-          <div className="text-xs uppercase tracking-wide text-ink-muted">
-            Rythme actif
-          </div>
-          <div className="text-lg font-semibold text-ink">
-            {formatCurrency(monthlyActive, "EUR", { compact: true })}
-            <span className="text-sm font-normal text-ink-muted"> / mois</span>
-          </div>
-        </div>
+    <>
+      {/* Mobile: stacked cards */}
+      <div className="flex flex-col gap-3 lg:hidden">
+        {ordered.map(({ plan: p, orientation: o }) => (
+          <article
+            key={p.id}
+            className="rounded-card border border-line bg-card px-4 py-3.5 shadow-soft"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="truncate text-sm font-semibold text-ink">
+                  {assetTitle(p.name, p.symbol)}
+                </div>
+                <div className="mt-0.5 font-mono text-[10.5px] text-ink3">
+                  {p.symbol} · {CADENCE_LABEL[p.cadence]}
+                </div>
+              </div>
+              <StatusPill active={p.active} />
+            </div>
+            <div className="mt-3 flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-ink3">
+                  / mois
+                </div>
+                <div className="text-sm font-semibold tabular text-ink">
+                  {formatCurrency(p.monthlyEur, "EUR")}
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-ink3">
+                  Investi
+                </div>
+                <div className="text-[13.5px] tabular text-ink2">
+                  {formatCurrency(p.totalInvestedEur, "EUR")}
+                </div>
+              </div>
+            </div>
+            <div className="mt-3 border-t border-line pt-3">
+              <StanceBadge o={o} />
+              <p className="mt-1.5 text-[12px] leading-snug text-ink3">
+                {o.detail}
+              </p>
+            </div>
+          </article>
+        ))}
       </div>
 
-      <ul className="divide-y divide-hairline">
-        {[...active, ...paused].map((p) => (
-          <li
+      {/* Desktop: table (unchanged) */}
+      <div className="hidden overflow-hidden rounded-card border border-line bg-card shadow-soft lg:block">
+        <div className="grid grid-cols-[1.6fr_.7fr_.85fr_.9fr_1fr_.85fr] gap-3 px-[22px] pb-2 pt-4 font-mono text-[10px] uppercase tracking-[0.08em] text-ink3">
+          <span>Sparplan</span>
+          <span>Cadence</span>
+          <span className="text-right">/ mois</span>
+          <span className="text-right">Investi</span>
+          <span>Orientation</span>
+          <span className="text-right">Statut</span>
+        </div>
+        {ordered.map(({ plan: p, orientation: o }) => (
+          <div
             key={p.id}
-            className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm"
+            className="grid grid-cols-[1.6fr_.7fr_.85fr_.9fr_1fr_.85fr] items-center gap-3 border-t border-line px-[22px] py-3 hover:bg-[color-mix(in_srgb,var(--tb-chip)_50%,transparent)]"
           >
-            <div className="min-w-[10rem] flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <AssetLabel name={p.name} symbol={p.symbol} />
-                <span
-                  className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ring-1 ${
-                    p.active
-                      ? "bg-good/10 text-good ring-good/30"
-                      : "bg-surface-2 text-ink-muted ring-hairline"
-                  }`}
-                >
-                  {p.active ? "Actif" : "Pause / arrêté"}
-                </span>
+            <div>
+              <div className="text-sm font-semibold text-ink">
+                {assetTitle(p.name, p.symbol)}
+              </div>
+              <div className="mt-0.5 font-mono text-[10.5px] text-ink3">
+                {p.symbol}
               </div>
             </div>
-
-            <div className="tabular text-right">
-              <div className="font-medium text-ink">
-                {formatCurrency(p.amountEur, "EUR")}
-                <span className="text-ink-muted">
-                  {" "}
-                  · {CADENCE_LABEL[p.cadence]}
-                </span>
-              </div>
-              <div className="text-xs text-ink-muted">
-                ≈ {formatCurrency(p.monthlyEur, "EUR")} / mois
-              </div>
+            <span className="text-[13.5px] text-ink2">
+              {CADENCE_LABEL[p.cadence]}
+            </span>
+            <span className="text-right text-sm font-semibold tabular text-ink">
+              {formatCurrency(p.monthlyEur, "EUR")}
+            </span>
+            <span className="text-right text-[13.5px] tabular text-ink2">
+              {formatCurrency(p.totalInvestedEur, "EUR")}
+            </span>
+            <div>
+              <StanceBadge o={o} />
+              <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-ink3">
+                {o.detail}
+              </p>
             </div>
-
-            <div className="w-full tabular text-xs text-ink-muted sm:w-auto sm:text-right">
-              {p.executionCount}× · total{" "}
-              {formatCurrency(p.totalInvestedEur, "EUR")} · dernier{" "}
-              {p.lastDate}
-            </div>
-          </li>
+            <span className="justify-self-end">
+              <StatusPill active={p.active} />
+            </span>
+          </div>
         ))}
-      </ul>
-    </div>
+      </div>
+    </>
   );
+}
+
+/** Convenience when only plans are known (no market yet). */
+export function orientPlansFallback(plans: DcaPlan[]): DcaPlanRow[] {
+  return plans.map((plan) => ({
+    plan,
+    orientation: orientDca(null, { planActive: plan.active }),
+  }));
 }

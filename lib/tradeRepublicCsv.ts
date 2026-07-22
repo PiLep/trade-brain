@@ -101,6 +101,10 @@ export interface TrParseResult {
   skippedRows: number;
   /** Approximate cash left on the brokerage account (EUR). */
   cashEur: number;
+  /** Earliest transaction date in the CSV (YYYY-MM-DD). */
+  csvFirstDate: string | null;
+  /** Latest transaction date in the CSV (YYYY-MM-DD). */
+  csvLastDate: string | null;
 }
 
 const ISIN_RE = /^[A-Z]{2}[A-Z0-9]{9}[0-9]$/;
@@ -447,12 +451,23 @@ export function positionsFromTradeRepublicCsv(csvText: string): TrParseResult {
 
   const dcaPlans = detectDcaPlans(rows, header);
 
+  const tradeDates = trades
+    .map((tr) => (tr.t || "").slice(0, 10))
+    .filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d))
+    .sort();
+  const dcaDates = dcaPlans.flatMap((d) => [d.firstDate, d.lastDate]);
+  const allDates = [...tradeDates, ...dcaDates]
+    .filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d))
+    .sort();
+
   return {
     positions,
     dcaPlans,
     tradeCount: trades.length,
     skippedRows,
     cashEur,
+    csvFirstDate: allDates[0] ?? null,
+    csvLastDate: allDates[allDates.length - 1] ?? null,
   };
 }
 

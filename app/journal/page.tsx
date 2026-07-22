@@ -2,16 +2,24 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
-import {
-  formatCurrency,
-  formatPercent,
-} from "@/lib/format";
+import { formatCurrency, formatPercent } from "@/lib/format";
 import { assetTitle } from "@/lib/labels";
 import { journalStats } from "@/lib/signalJournal";
 import { useMarketPortfolio } from "@/lib/useMarketPortfolio";
 import { RecommendationBadge } from "@/components/RecommendationBadge";
-import { Skeleton } from "@/components/Skeleton";
+import { JournalSkeleton } from "@/components/Skeleton";
 import { StatTile } from "@/components/StatTile";
+
+function formatFrDate(iso: string) {
+  try {
+    return new Date(iso + "T12:00:00").toLocaleDateString("fr-FR", {
+      day: "numeric",
+      month: "short",
+    });
+  } catch {
+    return iso;
+  }
+}
 
 export default function JournalPage() {
   const { loaded, fetching, refreshedAt, journal, displayCurrency } =
@@ -21,29 +29,22 @@ export default function JournalPage() {
   const stats = useMemo(() => journalStats(journal), [journal]);
 
   if (!loaded) {
-    return (
-      <div className="space-y-6" aria-busy="true">
-        <Skeleton className="h-7 w-36" />
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-24 w-full rounded-xl" />
-          ))}
-        </div>
-      </div>
-    );
+    return <JournalSkeleton />;
   }
 
   return (
-    <div className="space-y-6" aria-busy={fetching}>
+    <div className="animate-rise space-y-6" aria-busy={fetching}>
       <div>
-        <h1 className="text-xl font-semibold text-ink">Journal signaux</h1>
-        <p className="text-sm text-ink-muted">
-          Snapshots Buy/Sell en SQLite — scoring auto à J+5 et J+20 au prochain
-          refresh.
+        <h1 className="text-[22px] font-bold tracking-tight text-ink sm:text-[26px]">
+          Journal
+        </h1>
+        <p className="mt-1 max-w-[40rem] text-[13px] leading-snug text-ink2 sm:text-[13.5px]">
+          Mémoire des orientations — J+5 / J+20 pour calibrer si « renforcer »
+          / « alléger » avait du sens
         </p>
       </div>
 
-      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <section className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <StatTile
           label="Entrées"
           value={String(stats.count)}
@@ -83,94 +84,58 @@ export default function JournalPage() {
         />
       </section>
 
-      <section className="overflow-hidden rounded-xl border border-hairline bg-surface">
-        <div className="border-b border-hairline px-4 py-3">
-          <h2 className="text-sm font-semibold text-ink">Historique</h2>
-        </div>
+      <section className="overflow-hidden rounded-card border border-line bg-card shadow-soft">
         {journal.length === 0 ? (
-          <p className="px-4 py-12 text-center text-sm text-ink-muted">
-            Aucun signal journalisé pour l’instant. Reviens quand des Buy/Sell
-            apparaissent — ils seront enregistrés automatiquement.
+          <p className="px-[22px] py-14 text-center text-sm text-ink3">
+            Aucun signal journalisé pour l’instant. Les Buy/Sell apparaîtront
+            automatiquement au refresh.
           </p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] text-left text-sm">
-              <thead className="text-xs uppercase tracking-wide text-ink-muted">
-                <tr className="border-b border-hairline">
-                  <th className="px-4 py-2.5 font-medium">Date</th>
-                  <th className="px-4 py-2.5 font-medium">Asset</th>
-                  <th className="px-4 py-2.5 font-medium">Signal</th>
-                  <th className="px-4 py-2.5 font-medium">Prix</th>
-                  <th className="px-4 py-2.5 font-medium">J+5</th>
-                  <th className="px-4 py-2.5 font-medium">J+20</th>
-                </tr>
-              </thead>
-              <tbody>
-                {journal.map((e) => (
-                  <tr
-                    key={e.id}
-                    className="border-b border-hairline/60 last:border-0"
-                  >
-                    <td className="px-4 py-3 tabular text-ink-muted">
-                      {e.date}
-                    </td>
-                    <td className="px-4 py-3">
-                      <Link
-                        href={`/asset/${encodeURIComponent(e.holdingId)}`}
-                        className="font-medium text-ink hover:underline"
-                      >
-                        {assetTitle(e.name, e.symbol)}
-                      </Link>
-                      <div className="text-xs text-ink-muted">{e.symbol}</div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <RecommendationBadge
-                        recommendation={e.recommendation}
-                        size="sm"
-                      />
-                      <span className="ml-2 tabular text-xs text-ink-muted">
-                        {e.score > 0 ? "+" : ""}
-                        {e.score}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 tabular text-ink">
-                      {formatCurrency(e.price, displayCurrency)}
-                    </td>
-                    <td
-                      className={`px-4 py-3 tabular ${
-                        e.return5Pct == null
-                          ? "text-ink-muted"
-                          : e.return5Pct > 0
-                            ? "text-good"
-                            : e.return5Pct < 0
-                              ? "text-critical"
-                              : "text-ink-muted"
-                      }`}
+          journal.map((e) => {
+            const metaParts = [
+              `Prix ${formatCurrency(e.price, displayCurrency)}`,
+              e.return5Pct != null
+                ? `J+5 ${formatPercent(e.return5Pct)}`
+                : "J+5 …",
+              e.return20Pct != null
+                ? `J+20 ${formatPercent(e.return20Pct)}`
+                : "J+20 …",
+            ];
+            return (
+              <div
+                key={e.id}
+                className="grid grid-cols-1 items-baseline gap-2 border-t border-line px-4 py-3.5 first:border-t-0 hover:bg-[color-mix(in_srgb,var(--tb-chip)_50%,transparent)] sm:grid-cols-[84px_auto_1fr] sm:gap-4 sm:px-[22px]"
+              >
+                <div className="flex flex-wrap items-center gap-2 sm:contents">
+                  <span className="font-mono text-[11.5px] text-ink3">
+                    {formatFrDate(e.date)}
+                  </span>
+                  <RecommendationBadge
+                    recommendation={e.recommendation}
+                    size="sm"
+                  />
+                </div>
+                <div className="min-w-0 sm:col-auto">
+                  <div className="text-[13.5px] leading-relaxed text-ink">
+                    <Link
+                      href={`/asset/${encodeURIComponent(e.holdingId)}`}
+                      className="font-semibold hover:underline"
                     >
-                      {e.return5Pct == null
-                        ? "…"
-                        : formatPercent(e.return5Pct)}
-                    </td>
-                    <td
-                      className={`px-4 py-3 tabular ${
-                        e.return20Pct == null
-                          ? "text-ink-muted"
-                          : e.return20Pct > 0
-                            ? "text-good"
-                            : e.return20Pct < 0
-                              ? "text-critical"
-                              : "text-ink-muted"
-                      }`}
-                    >
-                      {e.return20Pct == null
-                        ? "…"
-                        : formatPercent(e.return20Pct)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                      {assetTitle(e.name, e.symbol)}
+                    </Link>
+                    <span className="text-ink2">
+                      {" "}
+                      · score {e.score > 0 ? "+" : ""}
+                      {e.score}
+                    </span>
+                  </div>
+                  <div className="mt-0.5 text-xs text-ink3">
+                    {metaParts.join(" · ")}
+                  </div>
+                </div>
+              </div>
+            );
+          })
         )}
       </section>
     </div>

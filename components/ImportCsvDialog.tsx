@@ -32,10 +32,15 @@ export function ImportCsvDialog({
       Omit<Holding, "id" | "addedAt" | "source"> & { externalKey: string }
     >,
     dcas: Array<Omit<DcaPlan, "id">>,
+    meta?: { csvFirstDate: string | null; csvLastDate: string | null },
   ) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
+  const parseMetaRef = useRef<{
+    csvFirstDate: string | null;
+    csvLastDate: string | null;
+  } | null>(null);
   const [meta, setMeta] = useState<{
     trades: number;
     skipped: number;
@@ -43,6 +48,8 @@ export function ImportCsvDialog({
     costEur: number;
     dcaCount: number;
     dcaMonthly: number;
+    csvFirstDate: string | null;
+    csvLastDate: string | null;
   } | null>(null);
   const [preview, setPreview] = useState<PreviewRow[]>([]);
   const [dcaPreview, setDcaPreview] = useState<TrDcaPlan[]>([]);
@@ -60,6 +67,7 @@ export function ImportCsvDialog({
       setDcaPreview([]);
       setResolving(false);
       setFileName(null);
+      parseMetaRef.current = null;
       symbolMapRef.current = {};
       if (inputRef.current) inputRef.current.value = "";
     }
@@ -188,6 +196,10 @@ export function ImportCsvDialog({
       const dcaMonthly = result.dcaPlans
         .filter((d) => d.active)
         .reduce((a, d) => a + d.monthlyEur, 0);
+      parseMetaRef.current = {
+        csvFirstDate: result.csvFirstDate,
+        csvLastDate: result.csvLastDate,
+      };
       setMeta({
         trades: result.tradeCount,
         skipped: result.skippedRows,
@@ -195,6 +207,8 @@ export function ImportCsvDialog({
         costEur,
         dcaCount: result.dcaPlans.length,
         dcaMonthly,
+        csvFirstDate: result.csvFirstDate,
+        csvLastDate: result.csvLastDate,
       });
       if (result.positions.length === 0 && result.dcaPlans.length === 0) {
         setPreview([]);
@@ -207,6 +221,7 @@ export function ImportCsvDialog({
       setPreview([]);
       setDcaPreview([]);
       setMeta(null);
+      parseMetaRef.current = null;
       setError(err instanceof Error ? err.message : "Import impossible");
     }
   };
@@ -247,17 +262,18 @@ export function ImportCsvDialog({
         monthlyEur: d.monthlyEur,
       };
     });
-    onImport(holdings, dcas);
+    onImport(holdings, dcas, parseMetaRef.current ?? undefined);
     onClose();
   };
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 p-4 pt-[8vh] backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-end justify-center p-0 backdrop-blur-sm sm:items-start sm:p-4 sm:pt-[8vh]"
+      style={{ background: "var(--tb-overlay)" }}
       onClick={onClose}
     >
       <div
-        className="animate-in flex max-h-[84vh] w-full max-w-lg flex-col rounded-2xl border border-hairline bg-surface shadow-2xl"
+        className="animate-in flex max-h-[92dvh] w-full max-w-lg flex-col rounded-t-2xl border border-hairline bg-surface shadow-2xl sm:max-h-[84vh] sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-hairline px-5 py-4">
@@ -266,7 +282,7 @@ export function ImportCsvDialog({
               Import Trade Republic
             </h2>
             <p className="mt-0.5 text-xs text-ink-muted">
-              Positions + DCA — réimporter remplace, ne cumule pas.
+              Revue mensuelle — réimporter remplace, ne cumule pas.
             </p>
           </div>
           <button
@@ -338,6 +354,9 @@ export function ImportCsvDialog({
                 currency: "EUR",
                 maximumFractionDigits: 0,
               })}
+              {meta.csvFirstDate && meta.csvLastDate
+                ? ` · CSV ${meta.csvFirstDate} → ${meta.csvLastDate}`
+                : ""}
               {resolving ? " · résolution…" : ""}
             </p>
           )}
@@ -418,7 +437,7 @@ export function ImportCsvDialog({
           <button
             disabled={!canApply}
             onClick={apply}
-            className="w-full rounded-lg bg-s-1 py-2.5 text-sm font-semibold text-white transition enabled:hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+            className="w-full rounded-pill bg-accent py-2.5 text-sm font-semibold text-onacc transition enabled:hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Remplacer positions + DCA
           </button>

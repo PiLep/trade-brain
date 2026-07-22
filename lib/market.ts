@@ -6,6 +6,10 @@ import {
   resolveIsinEodhd,
   searchEodhd,
 } from "./eodhd";
+import {
+  getCachedChart,
+  setCachedChart,
+} from "./serverMarketCache";
 import type { ChartData } from "./types";
 import {
   fetchChart as fetchChartYahoo,
@@ -14,7 +18,7 @@ import {
 } from "./yahoo";
 import { isIsin, pickBestYahooResult } from "./tradeRepublicCsv";
 
-/** One symbol: Yahoo → EODHD. */
+/** One symbol: Yahoo → EODHD (no cache). */
 export async function fetchChart(
   symbol: string,
   range = "1y",
@@ -46,14 +50,23 @@ export async function fetchCharts(
 ): Promise<{ data: Record<string, ChartData>; errors: Record<string, string> }> {
   const data: Record<string, ChartData> = {};
   const errors: Record<string, string> = {};
+  const missing: string[] = [];
+
   for (const s of symbols) {
-    // Skip FX helpers that EODHD won't map cleanly from Yahoo form.
+    const hit = getCachedChart(s, range);
+    if (hit) data[s] = hit;
+    else missing.push(s);
+  }
+
+  for (const s of missing) {
     try {
-      data[s] = await fetchChart(s, range);
+      const chart = await fetchChart(s, range);
+      data[s] = chart;
+      setCachedChart(s, range, chart);
     } catch (err) {
       errors[s] = err instanceof Error ? err.message : "unknown error";
     }
-    if (symbols.length > 1) {
+    if (missing.length > 1) {
       await new Promise((r) => setTimeout(r, 80));
     }
   }
