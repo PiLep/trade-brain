@@ -1,0 +1,51 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+  background-color: #0d0d0d;
+  color: #ffffff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Thin, tabular figures for aligned numeric columns */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Subtle scrollbar to match the dark plane */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: #2c2c2a;
+  border-radius: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-in {
+  animation: fadeIn 0.18s ease-out;
+}
