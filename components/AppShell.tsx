@@ -11,6 +11,7 @@ import { AddAssetDialog } from "@/components/AddAssetDialog";
 import { GlossaryDrawer } from "@/components/GlossaryDrawer";
 import { ImportCsvDialog } from "@/components/ImportCsvDialog";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { UserMenu } from "@/components/UserMenu";
 
 const NAV = [
   { href: "/dca", label: "DCA" },
@@ -39,6 +40,13 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
   const { importOpen, setImportOpen, openImportCsv } = useImportCsvUi();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [glossOpen, setGlossOpen] = useState(false);
+
+  const isBareRoute =
+    pathname.startsWith("/sign-in") || pathname === "/forbidden";
+
+  if (isBareRoute) {
+    return <div className="min-h-screen bg-bg text-ink">{children}</div>;
+  }
 
   return (
     <div className="min-h-screen bg-bg text-ink">
@@ -100,6 +108,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
               <span className="sm:hidden">+ Actif</span>
               <span className="hidden sm:inline">+ Ajouter un actif</span>
             </button>
+            <UserMenu />
           </div>
         </div>
       </header>

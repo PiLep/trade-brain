@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireSession } from "@/lib/requireAuth";
 import {
   importJournalEntries,
   listJournalEntries,
@@ -15,6 +16,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  const gate = await requireSession();
+  if (gate.error) return gate.error;
   try {
     return NextResponse.json({ entries: listJournalEntries() });
   } catch (e) {
@@ -30,6 +33,8 @@ type SyncBody = {
 };
 
 export async function POST(req: NextRequest) {
+  const gate = await requireSession();
+  if (gate.error) return gate.error;
   try {
     const body = (await req.json()) as SyncBody;
     if (body.migrate?.length) {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchCharts } from "@/lib/market";
+import { requireSession } from "@/lib/requireAuth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -9,6 +10,8 @@ export const dynamic = "force-dynamic";
  * Yahoo first, EODHD fallback. Server memory cache ~5 min / symbol.
  */
 export async function GET(req: NextRequest) {
+  const gate = await requireSession();
+  if (gate.error) return gate.error;
   const { searchParams } = new URL(req.url);
   const symbolsParam = searchParams.get("symbols") ?? searchParams.get("symbol");
   const range = searchParams.get("range") ?? "1y";

@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { searchSymbols } from "@/lib/market";
+import { requireSession } from "@/lib/requireAuth";
 
 export const dynamic = "force-dynamic";
 
 /** GET /api/search?q=apple → SearchResult[] */
 export async function GET(req: NextRequest) {
+  const gate = await requireSession();
+  if (gate.error) return gate.error;
   const { searchParams } = new URL(req.url);
   const q = (searchParams.get("q") ?? "").trim();
   if (q.length < 1) {
