@@ -1,0 +1,12 @@
+services:
+  trade-brain:
+    image: ghcr.io/pilep/trade-brain:latest
+    container_name: trade-brain
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - EODHD_API_TOKEN=${EODHD_API_TOKEN:?EODHD_API_TOKEN is required}
+      - NODE_ENV=production
