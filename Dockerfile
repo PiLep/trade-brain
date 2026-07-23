@@ -6,13 +6,10 @@ RUN apk add --no-cache python3 make g++ && \
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
-<<<<<<< HEAD
-=======
 # Build-time placeholders only — override at runtime in the host/compose.
 ENV BETTER_AUTH_SECRET="build-time-placeholder-not-used-in-prod"
 ENV BETTER_AUTH_URL="http://localhost:3000"
 ENV NEXT_PUBLIC_APP_URL="http://localhost:3000"
->>>>>>> origin/emdash/trade-brain-app-d0ojn
 RUN npm run build
 
 FROM node:22-alpine AS runner
