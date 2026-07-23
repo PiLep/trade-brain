@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useMarketPortfolio } from "@/lib/useMarketPortfolio";
 import { AssetDetail } from "@/components/AssetDetail";
-import { Skeleton } from "@/components/Skeleton";
+import { AssetSkeleton } from "@/components/Skeleton";
 
 export default function AssetPage() {
   const params = useParams();
@@ -21,25 +21,7 @@ export default function AssetPage() {
   } = useMarketPortfolio();
 
   if (!loaded) {
-    return (
-      <div className="space-y-4" aria-busy="true" aria-label="Chargement">
-        <Skeleton className="h-4 w-24" />
-        <div className="grid gap-4 lg:grid-cols-5">
-          <div className="rounded-xl border border-hairline bg-surface p-4 lg:col-span-3">
-            <Skeleton className="mb-4 h-6 w-48" />
-            <Skeleton className="h-[300px] w-full" />
-          </div>
-          <div className="space-y-4 lg:col-span-2">
-            <div className="rounded-xl border border-hairline bg-surface p-4 space-y-3">
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-[75%]" />
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+    return <AssetSkeleton />;
   }
 
   const row = rows.find((r) => r.holding.id === id);

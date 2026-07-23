@@ -1,6 +1,5 @@
 import type { Config } from "tailwindcss";
 
-// Color tokens sourced from the validated data-viz reference palette (dark mode).
 const config: Config = {
   content: [
     "./app/**/*.{ts,tsx}",
@@ -10,40 +9,60 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Surfaces
-        plane: "#0d0d0d", // page plane
-        surface: "#1a1a19", // chart / card surface
-        "surface-2": "#232322", // raised surface
-        // Ink
-        ink: "#ffffff",
-        "ink-secondary": "#c3c2b7",
-        "ink-muted": "#898781",
-        // Chrome
-        grid: "#2c2c2a",
-        baseline: "#383835",
-        hairline: "rgba(255,255,255,0.10)",
-        // Status (fixed, never themed)
-        good: "#0ca30c",
-        warning: "#fab219",
+        plane: "var(--tb-plane)",
+        bg: "var(--tb-bg)",
+        surface: "var(--tb-surface)",
+        card: "var(--tb-card)",
+        "surface-2": "var(--tb-surface-2)",
+        chip: "var(--tb-chip)",
+        ink: "var(--tb-ink)",
+        "ink-secondary": "var(--tb-ink-secondary)",
+        "ink-muted": "var(--tb-ink-muted)",
+        ink2: "var(--tb-ink2)",
+        ink3: "var(--tb-ink3)",
+        line: "var(--tb-line)",
+        hairline: "var(--tb-hairline)",
+        grid: "var(--tb-grid)",
+        baseline: "var(--tb-baseline)",
+        accent: "var(--tb-accent)",
+        onacc: "var(--tb-onacc)",
+        pos: "var(--tb-pos)",
+        neg: "var(--tb-neg)",
+        warn: "var(--tb-warn)",
+        warnbg: "var(--tb-warnbg)",
+        // legacy aliases
+        good: "var(--tb-pos)",
+        warning: "var(--tb-warn)",
         serious: "#ec835a",
-        critical: "#d03b3b",
-        // Categorical series (dark steps)
-        "s-1": "#3987e5",
-        "s-2": "#d95926",
-        "s-3": "#199e70",
-        "s-4": "#c98500",
-        "s-5": "#d55181",
+        critical: "var(--tb-neg)",
+        "s-1": "var(--tb-accent)",
+        "s-2": "#d97b4f",
+        "s-3": "#4ca88c",
+        "s-4": "#cda23f",
+        "s-5": "#c25e93",
         "s-6": "#008300",
         "s-7": "#9085e9",
         "s-8": "#e66767",
       },
+      boxShadow: {
+        soft: "var(--tb-shadow)",
+      },
+      borderRadius: {
+        pill: "999px",
+        card: "18px",
+      },
       fontFamily: {
         sans: [
+          "var(--font-sans)",
           "system-ui",
           "-apple-system",
           "Segoe UI",
           "sans-serif",
         ],
+        mono: ["var(--font-mono)", "ui-monospace", "monospace"],
+      },
+      maxWidth: {
+        shell: "1240px",
       },
     },
   },

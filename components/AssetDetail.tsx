@@ -33,8 +33,8 @@ export function AssetDetail({
       : (row.chart?.currency ?? "EUR");
 
   return (
-    <div className="animate-in grid gap-4 lg:grid-cols-5">
-      <div className="rounded-xl border border-hairline bg-surface p-4 lg:col-span-3">
+    <div className="animate-rise grid gap-4 sm:gap-5 lg:grid-cols-5">
+      <div className="rounded-card border border-line bg-card p-4 shadow-soft sm:p-5 lg:col-span-3">
         <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
           <div>
             <div className="flex flex-wrap items-center gap-2">
@@ -64,15 +64,15 @@ export function AssetDetail({
                 </div>
                 <div
                   className={`text-sm ${
-                    row.dayChangePct > 0
-                      ? "text-good"
-                      : row.dayChangePct < 0
-                        ? "text-critical"
-                        : "text-ink-muted"
+                    row.monthChangePct > 0
+                      ? "text-pos"
+                      : row.monthChangePct < 0
+                        ? "text-neg"
+                        : "text-ink3"
                   }`}
                 >
                   {row.chart
-                    ? `${formatPercent(row.dayChangePct)} today`
+                    ? `${formatPercent(row.monthChangePct)} ce mois`
                     : "mark TR / EOD"}
                 </div>
               </>
@@ -92,7 +92,7 @@ export function AssetDetail({
             </div>
           </>
         ) : fetching && !row.unmanaged ? (
-          <Skeleton className="h-[300px] w-full" />
+          <Skeleton className="mt-2 h-[280px] w-full rounded-xl" />
         ) : (
           <div className="flex h-[300px] items-center justify-center text-sm text-ink-muted">
             {row.error ?? "No chart data"}
@@ -101,7 +101,7 @@ export function AssetDetail({
       </div>
 
       <div className="space-y-4 lg:col-span-2">
-        <div className="rounded-xl border border-hairline bg-surface p-4">
+        <div className="rounded-card border border-line bg-card p-5 shadow-soft">
           <h2 className="mb-3 text-sm font-semibold text-ink">Position</h2>
           <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-sm">
             <Indicator
@@ -146,7 +146,7 @@ export function AssetDetail({
           )}
         </div>
 
-        <div className="rounded-xl border border-hairline bg-surface p-4">
+        <div className="rounded-card border border-line bg-card p-5 shadow-soft">
           <h2 className="mb-3 text-sm font-semibold text-ink">Indicators</h2>
           {row.unmanaged ? (
             <p className="text-sm text-ink-muted">Non géré</p>
@@ -212,7 +212,7 @@ export function AssetDetail({
           )}
         </div>
 
-        <div className="rounded-xl border border-hairline bg-surface p-4">
+        <div className="rounded-card border border-line bg-card p-5 shadow-soft">
           <h2 className="mb-3 text-sm font-semibold text-ink">
             Why this signal
           </h2>
@@ -223,9 +223,9 @@ export function AssetDetail({
                   <span
                     className={`mt-0.5 shrink-0 text-[10px] font-bold ${
                       s.tone === "bullish"
-                        ? "text-good"
+                        ? "text-pos"
                         : s.tone === "bearish"
-                          ? "text-critical"
+                          ? "text-neg"
                           : "text-ink-muted"
                     }`}
                     aria-hidden

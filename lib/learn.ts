@@ -17,7 +17,8 @@ export type LearnSection = {
 
 const PORTFOLIO: LearnSection = {
   title: "Portefeuille",
-  intro: "Glossaire des libellés affichés à gauche.",
+  intro:
+    "Contexte d’allocation. Trade Brain sert surtout à orienter tes sparplans.",
   tips: [
     {
       term: "Valeur",
@@ -30,8 +31,9 @@ const PORTFOLIO: LearnSection = {
         "Plus ou moins-value latente vs PRU (prix de revient unitaire). Réalisé seulement à la vente.",
     },
     {
-      term: "Aujourd’hui",
-      plain: "Variation vs clôture de la veille, pas vs ton prix d’achat.",
+      term: "Ce mois",
+      plain:
+        "Performance marché depuis le 1er du mois. Contexte pour le frein — pas un suivi trading.",
     },
     {
       term: "PEA / CT",
@@ -39,35 +41,40 @@ const PORTFOLIO: LearnSection = {
         "PEA = plan d’épargne en actions. CT = compte-titres. Même ISIN peut exister dans les deux enveloppes.",
     },
     {
-      term: "SMA200 — moyenne mobile 200 jours",
-      plain:
-        "Moyenne des clôtures sur ~200 séances. Filtre de tendance longue : cours au-dessus = biais haussier, en dessous = baissier.",
-    },
-    {
       term: "Régime",
       plain:
-        "Part des lignes au-dessus de leur SMA200 (+ biais crypto). Risk-off = peu d’actifs en tendance haussière longue.",
+        "Part des lignes au-dessus de leur SMA200 (+ biais crypto). Risk-off → prudence sur les renforcements DCA.",
     },
     {
       term: "Concentration",
-      plain: "Poids d’une ligne (ou du top 3) trop élevé → risque idiosyncratique.",
+      plain:
+        "Poids trop élevé → éviter de renforcer encore ce sparplan.",
     },
     {
       term: "Circuit breaker",
       plain:
-        "Coupe les Buy si le portefeuille chute fort en peu de temps (ex. ≤ −3 % sur la journée, ou ≈ −8 % sur ~20 jours). Limite le rattrapage à chaud.",
+        "Coupe les « renforcer » si le mois est très négatif. Ne suspend jamais un sparplan déjà programmé chez TR.",
     },
   ],
 };
 
 const SIGNALS: LearnSection = {
   title: "Signaux",
-  intro: "Heuristiques sur le prix uniquement — pas un conseil d’investissement.",
+  intro:
+    "Heuristiques de prix pour décider le rythme DCA — pas un conseil d’achat/vente discrétionnaire.",
   tips: [
     {
-      term: "Buy / Sell / Hold",
+      term: "Buy → renforcer",
+      plain: "Candidat à un sparplan plus généreux (ou à en ouvrir un).",
+    },
+    {
+      term: "Hold → maintenir",
+      plain: "Garder le montant actuel, ne rien changer.",
+    },
+    {
+      term: "Sell → alléger",
       plain:
-        "Favorable / défavorable / neutre. Strong = consensus plus net entre facteurs.",
+        "Réduire le montant ou mettre en pause — pas forcément vendre la ligne.",
     },
     {
       term: "Score",
@@ -75,44 +82,41 @@ const SIGNALS: LearnSection = {
         "Agrégat −100…+100. Confiance = alignement des facteurs (pas une proba de gain).",
     },
     {
-      term: "SMA20 / 50 / 200",
+      term: "SMA200",
       plain:
-        "Simple Moving Average : moyenne des clôtures sur N jours. Court = bruit ; 200 = tendance de fond.",
-    },
-    {
-      term: "RSI — Relative Strength Index",
-      plain:
-        "Oscillateur 0–100 sur le momentum récent. Zone haute = extension haussière ; basse = extension baissière.",
+        "Filtre de tendance longue. Au-dessus = biais renforcer ; en dessous = prudence.",
     },
     {
       term: "Sizing",
       plain:
-        "Taille d’ajout pour ~1 % de risque portefeuille si stop touché (souvent sous SMA50).",
-    },
-    {
-      term: "Non géré",
-      plain:
-        "Pas de cotation live fiable (oblig., private equity…) : mark TR, pas de signal.",
+        "Ordre de grandeur si tu ajoutes du cash hors sparplan (~1 % de risque). Secondaire pour du pur DCA.",
     },
   ],
 };
 
 const DCA: LearnSection = {
-  title: "DCA",
-  intro: "Dollar-cost averaging = versements réguliers, indépendamment du cours.",
+  title: "Orientation DCA",
+  intro:
+    "Cœur du produit : décider où mettre (ou retirer) du flux mensuel régulier.",
   tips: [
     {
       term: "Sparplan",
       plain: "Ordre récurrent Trade Republic — l’équivalent opérationnel du DCA.",
     },
     {
-      term: "Actif / pause",
+      term: "Renforcer / maintenir / alléger",
       plain:
-        "Actif = exécutions récentes dans le CSV. Pause = plus de flux détecté.",
+        "Stance dérivée du signal. Tu ajustes le montant ou la pause chez TR — Trade Brain ne passe aucun ordre.",
     },
     {
-      term: "Rythme / mois",
-      plain: "Extrapolation du flux mensuel des plans encore actifs.",
+      term: "Projection / jour",
+      plain:
+        "Flux mensuel ÷ jours du mois. Pouls quotidien sans nouveau CSV — utile si tu fais surtout du DCA.",
+    },
+    {
+      term: "CSV",
+      plain:
+        "Sert à lister les sparplans et l’historique. Pas besoin de le rafraîchir chaque mois si tu ne trades presque jamais hors DCA.",
     },
   ],
 };
@@ -129,12 +133,13 @@ const JOURNAL: LearnSection = {
     },
     {
       term: "Snapshot",
-      plain: "Enregistrement du jour : signal + prix. Une ligne par position / jour.",
+      plain:
+        "À chaque refresh marché : signal + prix. Sert à évaluer la revue mois après mois, pas le trading quotidien.",
     },
     {
       term: "J+5 / J+20",
       plain:
-        "Performance N jours après le snapshot. Buy OK si prix ↑ ; Sell OK si prix ↓. “…” tant que le délai n’est pas écoulé.",
+        "Performance N jours après le snapshot (jours de marché). Buy OK si prix ↑ ; Sell OK si prix ↓. “…” tant que le délai n’est pas écoulé.",
     },
     {
       term: "Hit rate",

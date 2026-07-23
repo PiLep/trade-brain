@@ -9,10 +9,12 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import type { ImportMeta } from "./month";
 import type { DcaPlan, Holding } from "./types";
 
 const STORAGE_KEY = "trade-brain.portfolio.v1";
 const DCA_KEY = "trade-brain.dca.v1";
+const IMPORT_META_KEY = "trade-brain.import-meta.v1";
 
 const SEED: Holding[] = [
   {
@@ -82,9 +84,22 @@ function loadDcas(): DcaPlan[] {
   }
 }
 
+function loadImportMeta(): ImportMeta | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(IMPORT_META_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as ImportMeta;
+    return parsed?.importedAt ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
 type PortfolioApi = {
   holdings: Holding[];
   dcaPlans: DcaPlan[];
+  importMeta: ImportMeta | null;
   loaded: boolean;
   addHolding: (h: Omit<Holding, "id" | "addedAt">) => void;
   updateHolding: (id: string, patch: Partial<Omit<Holding, "id">>) => void;
@@ -95,6 +110,7 @@ type PortfolioApi = {
       Omit<Holding, "id" | "addedAt" | "source"> & { externalKey: string }
     >,
     dcas: Array<Omit<DcaPlan, "id">>,
+    meta?: Pick<ImportMeta, "csvFirstDate" | "csvLastDate">,
   ) => void;
 };
 
@@ -103,11 +119,13 @@ const PortfolioContext = createContext<PortfolioApi | null>(null);
 export function PortfolioProvider({ children }: { children: ReactNode }) {
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [dcaPlans, setDcaPlans] = useState<DcaPlan[]>([]);
+  const [importMeta, setImportMeta] = useState<ImportMeta | null>(null);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     setHoldings(loadHoldings());
     setDcaPlans(loadDcas());
+    setImportMeta(loadImportMeta());
     setLoaded(true);
   }, []);
 
@@ -128,6 +146,22 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       /* ignore */
     }
   }, [dcaPlans, loaded]);
+
+  useEffect(() => {
+    if (!loaded) return;
+    try {
+      if (importMeta) {
+        window.localStorage.setItem(
+          IMPORT_META_KEY,
+          JSON.stringify(importMeta),
+        );
+      } else {
+        window.localStorage.removeItem(IMPORT_META_KEY);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [importMeta, loaded]);
 
   const addHolding = useCallback((h: Omit<Holding, "id" | "addedAt">) => {
     setHoldings((prev) => {
@@ -177,6 +211,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
   const resetToSeed = useCallback(() => {
     setHoldings(SEED);
     setDcaPlans([]);
+    setImportMeta(null);
   }, []);
 
   const replaceTradeRepublicImport = useCallback(
@@ -185,6 +220,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
         Omit<Holding, "id" | "addedAt" | "source"> & { externalKey: string }
       >,
       dcas: Array<Omit<DcaPlan, "id">>,
+      meta?: Pick<ImportMeta, "csvFirstDate" | "csvLastDate">,
     ) => {
       setHoldings((prev) => {
         const keep = prev.filter((p) => {
@@ -214,6 +250,20 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
           symbol: d.symbol.toUpperCase(),
         })),
       );
+
+      const fromDca = dcas.flatMap((d) => [d.firstDate, d.lastDate]).filter(Boolean);
+      const dates = [
+        meta?.csvFirstDate,
+        meta?.csvLastDate,
+        ...fromDca,
+      ]
+        .filter((d): d is string => Boolean(d))
+        .sort();
+      setImportMeta({
+        importedAt: new Date().toISOString(),
+        csvFirstDate: meta?.csvFirstDate ?? dates[0] ?? null,
+        csvLastDate: meta?.csvLastDate ?? dates[dates.length - 1] ?? null,
+      });
     },
     [],
   );
@@ -222,6 +272,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     () => ({
       holdings,
       dcaPlans,
+      importMeta,
       loaded,
       addHolding,
       updateHolding,
@@ -232,6 +283,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     [
       holdings,
       dcaPlans,
+      importMeta,
       loaded,
       addHolding,
       updateHolding,

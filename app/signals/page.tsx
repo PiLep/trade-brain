@@ -1,15 +1,25 @@
 "use client";
 
 import Link from "next/link";
+import { useMemo, useState } from "react";
 import { formatCurrency } from "@/lib/format";
-import { isBuyRec } from "@/lib/risk";
-import { useMarketPortfolio } from "@/lib/useMarketPortfolio";
-import { AssetLabel, envelopeBadge } from "@/components/AssetLabel";
+import { assetTitle } from "@/lib/labels";
+import { isBuyRec, type PositionSize } from "@/lib/risk";
+import type { Recommendation } from "@/lib/types";
+import { useMarketPortfolio, type HoldingRow } from "@/lib/useMarketPortfolio";
+import { envelopeBadge } from "@/components/AssetLabel";
 import { RecommendationBadge } from "@/components/RecommendationBadge";
-import { RegimeCard } from "@/components/RegimeCard";
-import { RiskBanner } from "@/components/RiskBanner";
 import { SizeHint } from "@/components/SizeHint";
-import { Skeleton } from "@/components/Skeleton";
+import { SignalsCardsSkeleton, SignalsSkeleton } from "@/components/Skeleton";
+
+type Filter = "Tous" | "Buy" | "Sell" | "Hold";
+
+function isBuy(r: Recommendation) {
+  return r === "BUY" || r === "STRONG_BUY";
+}
+function isSell(r: Recommendation) {
+  return r === "SELL" || r === "STRONG_SELL";
+}
 
 export default function SignalsPage() {
   const {
@@ -21,256 +31,176 @@ export default function SignalsPage() {
     mutedBuys,
     displayCurrency,
     circuitBreaker,
-    concentration,
-    regime,
     sizeFor,
+    reviewMonthLabel,
   } = useMarketPortfolio();
 
+  const [filter, setFilter] = useState<Filter>("Tous");
   const chartsLoading = fetching && !refreshedAt;
 
-  if (!loaded) {
-    return (
-      <div className="space-y-6" aria-busy="true" aria-label="Chargement">
-        <div>
-          <Skeleton className="h-7 w-28" />
-          <Skeleton className="mt-2 h-4 w-64" />
-        </div>
-        <section className="rounded-xl border border-hairline bg-surface p-4">
-          <ul className="space-y-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <li key={i} className="space-y-2">
-                <Skeleton className="h-4 w-40" />
-                <Skeleton className="h-3 w-full" />
-                <Skeleton className="h-3 w-[80%]" />
-              </li>
-            ))}
-          </ul>
-        </section>
-      </div>
+  const list = useMemo(() => {
+    const managed = rows.filter((r) => !r.unmanaged && r.advice);
+    const buys = [
+      ...actionable.filter((r) => isBuyRec(r.advice?.recommendation)),
+      ...mutedBuys,
+    ];
+    const sells = actionable.filter(
+      (r) =>
+        r.advice &&
+        (r.advice.recommendation === "SELL" ||
+          r.advice.recommendation === "STRONG_SELL"),
     );
+    const holds = managed.filter(
+      (r) => r.advice!.recommendation === "HOLD",
+    );
+
+    if (filter === "Buy") return buys;
+    if (filter === "Sell") return sells;
+    if (filter === "Hold") return holds;
+    // Tous: actionable first, then holds, skip unmanaged on this page list
+    const rest = managed.filter(
+      (r) =>
+        !actionable.some((a) => a.holding.id === r.holding.id) &&
+        !mutedBuys.some((a) => a.holding.id === r.holding.id),
+    );
+    return [...actionable, ...mutedBuys, ...rest];
+  }, [rows, actionable, mutedBuys, filter]);
+
+  const counts = useMemo(() => {
+    const managed = rows.filter((r) => !r.unmanaged && r.advice);
+    return {
+      Tous: managed.length,
+      Buy:
+        actionable.filter((r) => isBuyRec(r.advice?.recommendation)).length +
+        mutedBuys.length,
+      Sell: actionable.filter(
+        (r) =>
+          r.advice &&
+          (r.advice.recommendation === "SELL" ||
+            r.advice.recommendation === "STRONG_SELL"),
+      ).length,
+      Hold: managed.filter((r) => r.advice!.recommendation === "HOLD").length,
+    };
+  }, [rows, actionable, mutedBuys]);
+
+  if (!loaded) {
+    return <SignalsSkeleton />;
   }
 
-  const holds = rows.filter(
-    (r) =>
-      !r.unmanaged && r.advice && r.advice.recommendation === "HOLD",
-  );
-  const unmanaged = rows.filter((r) => r.unmanaged);
+  const filters: Filter[] = ["Tous", "Buy", "Sell", "Hold"];
 
   return (
-    <div className="space-y-6" aria-busy={fetching}>
+    <div className="animate-rise space-y-5" aria-busy={fetching}>
       <div>
-        <h1 className="text-xl font-semibold text-ink">Signaux</h1>
-        <p className="text-sm text-ink-muted">
-          Buy / sell techniques — sizing à 1 % de risque, stop sous SMA50.
+        <h1 className="text-[22px] font-bold tracking-tight text-ink sm:text-[26px]">
+          Signaux
+        </h1>
+        <p className="mt-1 max-w-[40rem] text-[13px] leading-snug text-ink2 sm:text-[13.5px]">
+          {reviewMonthLabel} · heuristiques pour orienter le rythme DCA
+          (renforcer / maintenir / alléger) — pas du trading
         </p>
       </div>
 
-      {!chartsLoading && (
-        <>
-          <RegimeCard regime={regime} />
-          <RiskBanner
-            circuit={circuitBreaker}
-            concentration={concentration}
-          />
-        </>
-      )}
+      <div className="flex flex-wrap gap-2">
+        {filters.map((id) => {
+          const active = filter === id;
+          return (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setFilter(id)}
+              className={`rounded-pill border px-[15px] py-[7px] text-[13px] font-semibold transition ${
+                active
+                  ? "border-ink bg-ink text-bg"
+                  : "border-line bg-card text-ink2 hover:border-ink3"
+              }`}
+            >
+              {id} · {counts[id]}
+            </button>
+          );
+        })}
+      </div>
 
-      <section className="rounded-xl border border-hairline bg-surface overflow-hidden">
-        <div className="border-b border-hairline px-4 py-3">
-          <h2 className="text-sm font-semibold text-ink">
-            Actionnables {chartsLoading ? "" : `(${actionable.length})`}
-          </h2>
+      {chartsLoading ? (
+        <SignalsCardsSkeleton />
+      ) : list.length === 0 ? (
+        <p className="py-16 text-center text-sm text-ink3">
+          Aucun signal dans ce filtre.
+        </p>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {list.map((r) => (
+            <SignalCard
+              key={r.holding.id}
+              row={r}
+              currency={displayCurrency}
+              size={sizeFor(r)}
+              blocked={
+                circuitBreaker.active &&
+                isBuy(r.advice!.recommendation)
+              }
+              muted={mutedBuys.some((m) => m.holding.id === r.holding.id)}
+            />
+          ))}
         </div>
-        {chartsLoading ? (
-          <ul className="space-y-4 px-4 py-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <li key={i} className="space-y-2">
-                <Skeleton className="h-4 w-40" />
-                <Skeleton className="h-3 w-full" />
-                <Skeleton className="h-3 w-[75%]" />
-              </li>
-            ))}
-          </ul>
-        ) : actionable.length === 0 ? (
-          <p className="px-4 py-12 text-center text-sm text-ink-muted">
-            {circuitBreaker.active
-              ? "Circuit breaker actif — aucun sell fort non plus pour l’instant."
-              : "Aucun signal buy/sell fort pour le moment."}
-          </p>
-        ) : (
-          <ul className="divide-y divide-hairline">
-            {actionable.map((r) => (
-              <li key={r.holding.id} className="px-4 py-4">
-                <Link
-                  href={`/asset/${encodeURIComponent(r.holding.id)}`}
-                  className="flex flex-wrap items-start gap-3 hover:opacity-90"
-                >
-                  <div className="min-w-[8rem] flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <AssetLabel
-                        name={r.holding.name}
-                        symbol={r.holding.symbol}
-                        badge={envelopeBadge(r.holding)}
-                        size="sm"
-                      />
-                      <RecommendationBadge
-                        recommendation={r.advice!.recommendation}
-                        size="sm"
-                      />
-                      <span className="tabular text-xs text-ink-muted">
-                        score {r.advice!.score > 0 ? "+" : ""}
-                        {r.advice!.score} · conf. {r.advice!.confidence}%
-                      </span>
-                    </div>
-                    <ul className="mt-2 space-y-1">
-                      {r.advice!.signals.slice(0, 3).map((s) => (
-                        <li
-                          key={s.label}
-                          className="text-xs text-ink-muted"
-                        >
-                          <span
-                            className={
-                              s.tone === "bullish"
-                                ? "text-good"
-                                : s.tone === "bearish"
-                                  ? "text-critical"
-                                  : ""
-                            }
-                          >
-                            {s.tone === "bullish"
-                              ? "▲"
-                              : s.tone === "bearish"
-                                ? "▼"
-                                : "◆"}{" "}
-                            {s.label}
-                          </span>
-                          {" — "}
-                          {s.detail}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  <div className="tabular text-right text-sm font-medium text-ink">
-                    {formatCurrency(r.price, displayCurrency)}
-                  </div>
-                </Link>
-                {isBuyRec(r.advice?.recommendation) && (
-                  <div className="mt-3">
-                    <SizeHint
-                      size={sizeFor(r)}
-                      currency={displayCurrency}
-                      blocked={circuitBreaker.active}
-                    />
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
+      )}
+    </div>
+  );
+}
+
+function SignalCard({
+  row,
+  currency,
+  size,
+  blocked,
+  muted,
+}: {
+  row: HoldingRow;
+  currency: string;
+  size: PositionSize | null;
+  blocked?: boolean;
+  muted?: boolean;
+}) {
+  const rec = row.advice!.recommendation;
+  const badge = envelopeBadge(row.holding);
+  const reason =
+    row.advice!.signals[0]?.detail ??
+    "Pas de facteur dominant.";
+
+  return (
+    <div
+      className={`flex flex-col gap-2 rounded-2xl border border-line bg-card px-4 py-4 shadow-soft sm:px-[22px] sm:py-[18px] ${
+        muted ? "opacity-70" : ""
+      }`}
+    >
+      <Link
+        href={`/asset/${encodeURIComponent(row.holding.id)}`}
+        className="flex flex-wrap items-center gap-2 sm:gap-2.5"
+      >
+        <RecommendationBadge recommendation={rec} size="sm" />
+        <span className="min-w-0 flex-1 truncate text-[15px] font-semibold text-ink sm:flex-none">
+          {assetTitle(row.holding.name, row.holding.symbol)}
+        </span>
+        {badge && (
+          <span className="rounded-md border border-line px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.05em] text-ink2">
+            {badge}
+          </span>
         )}
-      </section>
-
-      {mutedBuys.length > 0 && (
-        <section className="rounded-xl border border-hairline bg-surface overflow-hidden opacity-70">
-          <div className="border-b border-hairline px-4 py-3">
-            <h2 className="text-sm font-semibold text-ink">
-              Achats en retrait ({mutedBuys.length})
-            </h2>
-            <p className="mt-0.5 text-xs text-ink-muted">
-              Signaux buy ignorés tant que le circuit breaker est actif.
-            </p>
-          </div>
-          <ul className="divide-y divide-hairline">
-            {mutedBuys.map((r) => (
-              <li key={r.holding.id}>
-                <Link
-                  href={`/asset/${encodeURIComponent(r.holding.id)}`}
-                  className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-surface-2/50"
-                >
-                  <div className="flex items-center gap-2">
-                    <AssetLabel
-                      name={r.holding.name}
-                      symbol={r.holding.symbol}
-                      badge={envelopeBadge(r.holding)}
-                      size="sm"
-                    />
-                    <RecommendationBadge
-                      recommendation={r.advice!.recommendation}
-                      size="sm"
-                    />
-                  </div>
-                  <span className="text-xs text-ink-muted">Retiré</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
+        <span className="font-mono text-[11px] text-ink3">
+          {row.holding.symbol}
+        </span>
+        <span className="w-full text-sm font-semibold tabular text-ink sm:ml-auto sm:w-auto">
+          {formatCurrency(row.price, currency)}
+        </span>
+      </Link>
+      <p className="text-[13px] leading-relaxed text-ink2">{reason}</p>
+      {muted && (
+        <div className="rounded-[10px] bg-chip px-3 py-2 text-[12.5px] text-ink2">
+          Achat en retrait — circuit breaker actif.
+        </div>
       )}
-
-      {holds.length > 0 && (
-        <section className="rounded-xl border border-hairline bg-surface overflow-hidden">
-          <div className="border-b border-hairline px-4 py-3">
-            <h2 className="text-sm font-semibold text-ink">
-              Hold ({holds.length})
-            </h2>
-          </div>
-          <ul className="divide-y divide-hairline">
-            {holds.map((r) => (
-              <li key={r.holding.id}>
-                <Link
-                  href={`/asset/${encodeURIComponent(r.holding.id)}`}
-                  className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-surface-2/50"
-                >
-                  <div className="flex items-center gap-2">
-                    <AssetLabel
-                      name={r.holding.name}
-                      symbol={r.holding.symbol}
-                      badge={envelopeBadge(r.holding)}
-                      size="sm"
-                    />
-                    <RecommendationBadge
-                      recommendation="HOLD"
-                      size="sm"
-                    />
-                  </div>
-                  <span className="tabular text-sm text-ink-muted">
-                    score {r.advice!.score}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {unmanaged.length > 0 && (
-        <section className="rounded-xl border border-hairline bg-surface overflow-hidden">
-          <div className="border-b border-hairline px-4 py-3">
-            <h2 className="text-sm font-semibold text-ink">
-              Non géré ({unmanaged.length})
-            </h2>
-            <p className="mt-0.5 text-xs text-ink-muted">
-              Obligations / private equity — pas de cotation ni de signal.
-            </p>
-          </div>
-          <ul className="divide-y divide-hairline">
-            {unmanaged.map((r) => (
-              <li key={r.holding.id}>
-                <Link
-                  href={`/asset/${encodeURIComponent(r.holding.id)}`}
-                  className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-surface-2/50"
-                >
-                  <AssetLabel
-                    name={r.holding.name}
-                    symbol={r.holding.symbol}
-                    badge={envelopeBadge(r.holding)}
-                    size="sm"
-                  />
-                  <span className="text-xs text-ink-muted">Non géré</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
+      {(isBuy(rec) || isSell(rec)) && (
+        <SizeHint size={size} currency={currency} blocked={blocked && !muted} />
       )}
     </div>
   );

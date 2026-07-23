@@ -32,7 +32,7 @@ export function Sparkline({
     .join(" ");
 
   const up = values[values.length - 1] >= values[0];
-  const stroke = up ? "#0ca30c" : "#d03b3b";
+  const stroke = up ? "var(--tb-pos)" : "var(--tb-neg)";
 
   return (
     <svg

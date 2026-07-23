@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resolveSymbol } from "@/lib/market";
+import { requireSession } from "@/lib/requireAuth";
 import { guessYahooSymbol, isIsin } from "@/lib/tradeRepublicCsv";
 
 export const dynamic = "force-dynamic";
@@ -9,6 +10,8 @@ export const dynamic = "force-dynamic";
  * Map / Yahoo / EODHD (ISIN-aware).
  */
 export async function GET(req: NextRequest) {
+  const gate = await requireSession();
+  if (gate.error) return gate.error;
   const url = new URL(req.url);
   const q = (url.searchParams.get("q") ?? "").trim();
   const assetClass = url.searchParams.get("assetClass") ?? "";

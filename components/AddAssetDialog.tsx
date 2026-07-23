@@ -94,11 +94,12 @@ export function AddAssetDialog({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 p-4 pt-[10vh] backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-end justify-center p-0 backdrop-blur-sm sm:items-start sm:p-4 sm:pt-[10vh]"
+      style={{ background: "var(--tb-overlay)" }}
       onClick={onClose}
     >
       <div
-        className="animate-in w-full max-w-md rounded-2xl border border-hairline bg-surface p-5 shadow-2xl"
+        className="animate-in w-full max-w-md rounded-t-2xl border border-hairline bg-surface p-4 shadow-2xl sm:rounded-2xl sm:p-5"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
@@ -209,7 +210,7 @@ export function AddAssetDialog({
         <button
           disabled={!canSubmit}
           onClick={submit}
-          className="mt-5 w-full rounded-lg bg-s-1 py-2.5 text-sm font-semibold text-white transition enabled:hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+          className="mt-5 w-full rounded-pill bg-accent py-2.5 text-sm font-semibold text-onacc transition enabled:hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
         >
           Add to portfolio
         </button>

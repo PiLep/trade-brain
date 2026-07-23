@@ -18,8 +18,8 @@ export const RISK = {
   riskPerTradePct: 1,
   /** Cap on suggested new position as % of portfolio. */
   maxNewPositionPct: 10,
-  /** Trip circuit breaker on daily portfolio move. */
-  dayLossBreakerPct: -3,
+  /** Trip circuit breaker on month-to-date portfolio move. */
+  monthLossBreakerPct: -6,
   /** Trip on ~20-session weighted portfolio move. */
   periodLossBreakerPct: -8,
   periodSessions: 20,
@@ -42,7 +42,7 @@ export type CircuitBreaker = {
   active: boolean;
   level: "ok" | "caution" | "halt";
   reasons: string[];
-  dayPnlPct: number;
+  monthPnlPct: number;
   periodPnlPct: number | null;
 };
 
@@ -70,7 +70,7 @@ type RowLike = {
   unmanaged: boolean;
   chart: { candles: Candle[] } | null;
   advice: Advice | null;
-  dayPnl: number;
+  monthPnl: number;
 };
 
 export function concentrationReport(
@@ -132,19 +132,19 @@ export function portfolioPeriodReturnPct(
 }
 
 export function evaluateCircuitBreaker(
-  dayPnlPct: number,
+  monthPnlPct: number,
   periodPnlPct: number | null,
 ): CircuitBreaker {
   const reasons: string[] = [];
   let level: CircuitBreaker["level"] = "ok";
 
-  if (dayPnlPct <= RISK.dayLossBreakerPct) {
+  if (monthPnlPct <= RISK.monthLossBreakerPct) {
     reasons.push(
-      `Perte du jour ${dayPnlPct.toFixed(1)} % (seuil ${RISK.dayLossBreakerPct} %)`,
+      `Mois en cours ${monthPnlPct.toFixed(1)} % (seuil ${RISK.monthLossBreakerPct} %)`,
     );
     level = "halt";
-  } else if (dayPnlPct <= RISK.dayLossBreakerPct / 2) {
-    reasons.push(`Journée fragile (${dayPnlPct.toFixed(1)} %)`);
+  } else if (monthPnlPct <= RISK.monthLossBreakerPct / 2) {
+    reasons.push(`Mois fragile (${monthPnlPct.toFixed(1)} %)`);
     level = "caution";
   }
 
@@ -168,7 +168,7 @@ export function evaluateCircuitBreaker(
     active: level === "halt",
     level,
     reasons,
-    dayPnlPct,
+    monthPnlPct,
     periodPnlPct,
   };
 }

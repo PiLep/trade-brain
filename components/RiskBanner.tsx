@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import type { CircuitBreaker, ConcentrationReport } from "@/lib/risk";
 import { formatPercent } from "@/lib/format";
 
@@ -16,53 +17,78 @@ export function RiskBanner({
   if (!showCircuit && !showConc) return null;
 
   return (
-    <div className="space-y-2">
+    <div className="flex max-w-[660px] flex-col gap-2.5">
       {showCircuit && (
         <div
-          className={`rounded-xl border px-4 py-3 text-sm ${
+          className={`flex items-start gap-2.5 rounded-xl border px-3.5 py-2.5 text-[13px] ${
             circuit.level === "halt"
-              ? "border-critical/40 bg-critical/10 text-ink"
-              : "border-warning/40 bg-warning/10 text-ink"
+              ? "border-[color-mix(in_srgb,var(--tb-neg)_28%,transparent)] bg-[color-mix(in_srgb,var(--tb-neg)_10%,transparent)] text-neg"
+              : "border-[color-mix(in_srgb,var(--tb-warn)_28%,transparent)] bg-warnbg text-warn"
           }`}
         >
-          <div className="font-semibold">
-            {circuit.level === "halt"
-              ? "Circuit breaker — pas de nouvel achat"
-              : "Prudence — exposition à surveiller"}
+          <WarnIcon />
+          <div className="min-w-0 flex-1">
+            <strong>
+              {circuit.level === "halt"
+                ? "Frein mensuel"
+                : "Prudence"}
+            </strong>
+            {" — "}
+            {circuit.reasons[0] ?? "Exposition à surveiller."}
           </div>
-          <ul className="mt-1 space-y-0.5 text-xs text-ink-secondary">
-            {circuit.reasons.map((r) => (
-              <li key={r}>{r}</li>
-            ))}
-            {circuit.level === "halt" && (
-              <li>
-                Les signaux Strong Buy / Buy sont mis en retrait jusqu’à
-                normalisation.
-              </li>
-            )}
-          </ul>
+          <Link
+            href="/signals"
+            className="whitespace-nowrap text-[12.5px] font-semibold underline"
+          >
+            Voir les signaux
+          </Link>
         </div>
       )}
 
       {showConc && (
-        <div className="rounded-xl border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-ink">
-          <div className="font-semibold">Concentration</div>
-          <ul className="mt-1 space-y-0.5 text-xs text-ink-secondary">
-            {concentration.alerts.map((a) => (
-              <li key={a.id}>
-                {a.name} : {formatPercent(a.weightPct, false)}
-                {a.severity === "hard" ? " — trop lourd" : " — élevé"}
-              </li>
-            ))}
-            {concentration.top3Warn && (
-              <li>
-                Top 3 = {formatPercent(concentration.top3Pct, false)} du
-                portefeuille
-              </li>
-            )}
-          </ul>
+        <div className="flex items-start gap-2.5 rounded-xl border border-[color-mix(in_srgb,var(--tb-warn)_28%,transparent)] bg-warnbg px-3.5 py-2.5 text-[13px] text-warn">
+          <WarnIcon />
+          <div className="min-w-0 flex-1">
+            <strong>Concentration élevée</strong>
+            {" — "}
+            {concentration.alerts.length
+              ? concentration.alerts
+                  .map(
+                    (a) =>
+                      `${a.name} ${formatPercent(a.weightPct, false)}`,
+                  )
+                  .join(" · ") + " (plafond 15 %)."
+              : `Top 3 = ${formatPercent(concentration.top3Pct, false)}.`}
+          </div>
+          <Link
+            href="/signals"
+            className="whitespace-nowrap text-[12.5px] font-semibold underline"
+          >
+            Voir les signaux
+          </Link>
         </div>
       )}
     </div>
+  );
+}
+
+function WarnIcon() {
+  return (
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="mt-0.5 shrink-0"
+      aria-hidden
+    >
+      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+      <line x1="12" y1="9" x2="12" y2="13" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
+    </svg>
   );
 }

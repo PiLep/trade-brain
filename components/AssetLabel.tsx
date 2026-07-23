@@ -49,13 +49,13 @@ export function AssetLabel({
       <div className="flex min-w-0 items-center gap-1.5">
         <div className={`truncate ${titleClass}`}>{title}</div>
         {badge && (
-          <span className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ink-muted ring-1 ring-hairline">
+          <span className="shrink-0 rounded-md border border-line px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.05em] text-ink2">
             {badge}
           </span>
         )}
       </div>
       {(sub || hint) && (
-        <div className="truncate text-xs text-ink-muted">
+        <div className="truncate font-mono text-[10.5px] text-ink3">
           {sub}
           {sub && hint ? " · " : ""}
           {hint}

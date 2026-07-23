@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchCharts } from "@/lib/market";
+import { requireSession } from "@/lib/requireAuth";
 
-// Never statically cache — quotes must be fresh.
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const revalidate = 0;
 
 /**
  * GET /api/chart?symbols=AAPL,BTC-USD&range=1y
- * Yahoo first, EODHD fallback when configured.
+ * Yahoo first, EODHD fallback. Server memory cache ~5 min / symbol.
  */
 export async function GET(req: NextRequest) {
+  const gate = await requireSession();
+  if (gate.error) return gate.error;
   const { searchParams } = new URL(req.url);
   const symbolsParam = searchParams.get("symbols") ?? searchParams.get("symbol");
   const range = searchParams.get("range") ?? "1y";
@@ -33,10 +35,11 @@ export async function GET(req: NextRequest) {
   try {
     const { data, errors } = await fetchCharts(symbols, range);
     return NextResponse.json(
-      { data, errors },
+      { data, errors, cachedAt: Date.now() },
       {
         headers: {
-          "Cache-Control": "s-maxage=30, stale-while-revalidate=60",
+          // Browser / CDN: short fresh window, longer SWR.
+          "Cache-Control": "private, max-age=60, stale-while-revalidate=600",
         },
       },
     );

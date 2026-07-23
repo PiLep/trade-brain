@@ -3,6 +3,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { analyze } from "@/lib/advice";
 import { assetTitle } from "@/lib/labels";
+import { useMarketData } from "@/lib/marketData";
+import {
+  missingCurrentMonthCsv,
+  monthLabel,
+  monthToDateReturnPct,
+} from "@/lib/month";
 import { evaluatePortfolioRegime, type PortfolioRegime } from "@/lib/regime";
 import {
   clearLegacyLocalJournal,
@@ -26,7 +32,6 @@ import {
   ENVELOPE_LABELS,
   markPriceEur,
   positionEnvelope,
-  toEur,
   type TrEnvelope,
 } from "@/lib/tradeRepublicCsv";
 import type { Advice, ChartData, Holding } from "@/lib/types";
@@ -41,9 +46,10 @@ export interface HoldingRow {
   costBasis: number;
   pnl: number;
   pnlPct: number;
-  dayChangePct: number;
-  /** Today's P&L in portfolio currency (EUR for TR), 0 if untrusted. */
-  dayPnl: number;
+  /** Month-to-date % move from market candles. */
+  monthChangePct: number;
+  /** Month-to-date P&L in portfolio currency. */
+  monthPnl: number;
   envelope: TrEnvelope;
   /** No live quote / signals — TR last trade mark only (bonds, PE, …). */
   unmanaged: boolean;
@@ -63,11 +69,8 @@ export interface EnvelopeSlice {
 /** Shared portfolio + live market enrichment for all pages. */
 export function useMarketPortfolio() {
   const portfolio = usePortfolio();
-  const { holdings, loaded } = portfolio;
-  const [charts, setCharts] = useState<Record<string, ChartData>>({});
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [fetching, setFetching] = useState(false);
-  const [refreshedAt, setRefreshedAt] = useState<Date | null>(null);
+  const { holdings, loaded, importMeta, dcaPlans } = portfolio;
+  const { charts, errors, fetching, refreshedAt, refresh } = useMarketData();
   const [journal, setJournal] = useState<SignalJournalEntry[]>([]);
 
   useEffect(() => {
@@ -96,49 +99,7 @@ export function useMarketPortfolio() {
     };
   }, []);
 
-  const symbolsKey = useMemo(
-    () =>
-      Array.from(new Set(holdings.map((h) => h.symbol.toUpperCase())))
-        .sort()
-        .join(","),
-    [holdings],
-  );
-
   const hasTradeRepublic = holdings.some((h) => h.source === "trade-republic");
-
-  useEffect(() => {
-    if (!loaded || !symbolsKey) {
-      setCharts({});
-      setErrors({});
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      setFetching(true);
-      try {
-        const fx = hasTradeRepublic ? ",EURUSD=X,EURGBP=X,EURJPY=X" : "";
-        const res = await fetch(
-          `/api/chart?symbols=${encodeURIComponent(symbolsKey + fx)}&range=1y`,
-        );
-        const json = await res.json();
-        if (cancelled) return;
-        setCharts(json.data ?? {});
-        setErrors(json.errors ?? {});
-        setRefreshedAt(new Date());
-      } catch (err) {
-        if (!cancelled) {
-          setErrors({
-            _: err instanceof Error ? err.message : "Failed to load market data",
-          });
-        }
-      } finally {
-        if (!cancelled) setFetching(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [loaded, symbolsKey, hasTradeRepublic]);
 
   const fx = useMemo(
     () => ({
@@ -187,31 +148,15 @@ export function useMarketPortfolio() {
         holding.assetClass === "BOND" ||
         holding.assetClass === "PRIVATE_FUND";
 
-      // Day P&L in the same unit as `price` / marketValue.
-      let dayPnl = 0;
-      let dayChangePct = 0;
-      const useEurMarks =
-        holding.source === "trade-republic" || Boolean(holding.lastPriceEur);
-      if (!unmanaged && chart && chart.previousClose > 0 && chart.price > 0) {
-        if (useEurMarks) {
-          const currEur = toEur(chart.price, chart.currency, fx);
-          const prevEur = toEur(chart.previousClose, chart.currency, fx);
-          // Ignore Yahoo day move when the mark fell back to last TR trade
-          // (wrong share unit would invent huge fake gains).
-          const liveAligned =
-            currEur != null &&
-            prevEur != null &&
-            price > 0 &&
-            Math.abs(currEur - price) / price < 0.2;
-          if (liveAligned) {
-            dayPnl = (currEur - prevEur) * holding.quantity;
-            dayChangePct = ((currEur - prevEur) / prevEur) * 100;
-          }
-        } else {
-          dayPnl =
-            (chart.price - chart.previousClose) * holding.quantity;
-          dayChangePct =
-            ((chart.price - chart.previousClose) / chart.previousClose) * 100;
+      // Month-to-date from candles (monthly review cadence).
+      let monthChangePct = 0;
+      let monthPnl = 0;
+      if (!unmanaged && chart?.candles?.length) {
+        const mtd = monthToDateReturnPct(chart.candles);
+        if (mtd != null) {
+          monthChangePct = mtd;
+          const startValue = marketValue / (1 + mtd / 100);
+          monthPnl = marketValue - startValue;
         }
       }
 
@@ -229,8 +174,8 @@ export function useMarketPortfolio() {
         costBasis,
         pnl,
         pnlPct,
-        dayChangePct,
-        dayPnl,
+        monthChangePct,
+        monthPnl,
         envelope,
         unmanaged,
       };
@@ -245,9 +190,23 @@ export function useMarketPortfolio() {
   const totalCost = rows.reduce((a, r) => a + r.costBasis, 0);
   const totalPnl = totalValue - totalCost;
   const totalPnlPct = totalCost === 0 ? 0 : (totalPnl / totalCost) * 100;
-  const dayPnl = rows.reduce((a, r) => a + r.dayPnl, 0);
-  const dayPnlPct =
-    totalValue === 0 ? 0 : (dayPnl / (totalValue - dayPnl || 1)) * 100;
+  const monthPnl = rows.reduce((a, r) => a + r.monthPnl, 0);
+  const monthStartValue = totalValue - monthPnl;
+  const monthPnlPct =
+    monthStartValue > 0 ? (monthPnl / monthStartValue) * 100 : 0;
+  const reviewMonthLabel = monthLabel();
+  const dcaLastDate =
+    dcaPlans
+      .map((d) => d.lastDate)
+      .filter(Boolean)
+      .sort()
+      .at(-1) ?? null;
+  const needsMonthCsv = missingCurrentMonthCsv(
+    importMeta,
+    hasTradeRepublic,
+    new Date(),
+    dcaLastDate,
+  );
 
   const envelopeOrder: TrEnvelope[] = [
     "compte-titres",
@@ -286,7 +245,7 @@ export function useMarketPortfolio() {
 
   const periodPnlPct = portfolioPeriodReturnPct(rows);
   const circuitBreaker: CircuitBreaker = evaluateCircuitBreaker(
-    dayPnlPct,
+    monthPnlPct,
     periodPnlPct,
   );
   const concentration: ConcentrationReport = concentrationReport(
@@ -371,14 +330,19 @@ export function useMarketPortfolio() {
     errors,
     fetching,
     refreshedAt,
+    refresh,
     displayCurrency,
     hasTradeRepublic,
     totalValue,
     totalCost,
     totalPnl,
     totalPnlPct,
-    dayPnl,
-    dayPnlPct,
+    monthPnl,
+    monthPnlPct,
+    reviewMonthLabel,
+    needsMonthCsv,
+    csvCoverageLastDate: importMeta?.csvLastDate || dcaLastDate,
+    importMeta,
     periodPnlPct,
     allocation,
     envelopes,

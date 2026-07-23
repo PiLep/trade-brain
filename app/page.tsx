@@ -12,17 +12,22 @@ import { assetTitle } from "@/lib/labels";
 import type { Recommendation } from "@/lib/types";
 import { useMarketPortfolio } from "@/lib/useMarketPortfolio";
 import { AllocationChart } from "@/components/AllocationChart";
-import { AssetLabel, envelopeBadge } from "@/components/AssetLabel";
+import { envelopeBadge } from "@/components/AssetLabel";
 import { RecommendationBadge } from "@/components/RecommendationBadge";
-import { PortfolioSkeleton, Skeleton } from "@/components/Skeleton";
+import {
+  AllocationSkeleton,
+  PortfolioSkeleton,
+  SignalsListSkeleton,
+  Skeleton,
+} from "@/components/Skeleton";
 import { RegimeCard } from "@/components/RegimeCard";
 import { RiskBanner } from "@/components/RiskBanner";
 import { SizeHint } from "@/components/SizeHint";
 import { Sparkline } from "@/components/Sparkline";
-import { StatTile } from "@/components/StatTile";
+import { projectDcaMonth } from "@/lib/dcaProjection";
 import { isBuyRec } from "@/lib/risk";
 
-type SortKey = "asset" | "price" | "day" | "value" | "pnl" | "signal";
+type SortKey = "asset" | "price" | "month" | "value" | "pnl" | "signal";
 type SortDir = "asc" | "desc";
 
 const SIGNAL_RANK: Record<Recommendation, number> = {
@@ -32,6 +37,34 @@ const SIGNAL_RANK: Record<Recommendation, number> = {
   SELL: -1,
   STRONG_SELL: -2,
 };
+
+function PnlChip({
+  amount,
+  pct,
+  currency,
+  suffix,
+}: {
+  amount: number;
+  pct: number;
+  currency: string;
+  suffix: string;
+}) {
+  const up = amount > 0;
+  const down = amount < 0;
+  const tone = up
+    ? "text-pos bg-[color-mix(in_srgb,var(--tb-pos)_10%,transparent)]"
+    : down
+      ? "text-neg bg-[color-mix(in_srgb,var(--tb-neg)_10%,transparent)]"
+      : "text-ink2 bg-chip";
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-pill px-3 py-1.5 text-[13px] font-semibold ${tone}`}
+    >
+      {up ? "▲" : down ? "▼" : "◆"}{" "}
+      {formatSignedCurrency(amount, currency)} · {formatPercent(pct)} {suffix}
+    </span>
+  );
+}
 
 export default function PortfolioPage() {
   const {
@@ -43,13 +76,14 @@ export default function PortfolioPage() {
     rows,
     fetching,
     refreshedAt,
+    refresh,
     displayCurrency,
     totalValue,
     totalPnl,
     totalPnlPct,
-    dayPnl,
-    dayPnlPct,
-    allocation,
+    monthPnl,
+    monthPnlPct,
+    reviewMonthLabel,
     envelopes,
     hasTradeRepublic,
     actionable,
@@ -76,18 +110,9 @@ export default function PortfolioPage() {
         case "price":
           cmp = a.price - b.price;
           break;
-        case "day": {
-          const ret = (r: (typeof rows)[0]) => {
-            const c = r.chart?.candles ?? [];
-            if (c.length < 2) return 0;
-            const slice = c.slice(-90);
-            const first = slice[0]?.close ?? 0;
-            const last = slice[slice.length - 1]?.close ?? 0;
-            return first ? (last - first) / first : 0;
-          };
-          cmp = ret(a) - ret(b);
+        case "month":
+          cmp = a.monthChangePct - b.monthChangePct;
           break;
-        }
         case "value":
           cmp = a.marketValue - b.marketValue;
           break;
@@ -100,9 +125,7 @@ export default function PortfolioPage() {
             (b.advice ? SIGNAL_RANK[b.advice.recommendation] : -99);
           break;
       }
-      if (cmp === 0) {
-        cmp = b.marketValue - a.marketValue;
-      }
+      if (cmp === 0) cmp = b.marketValue - a.marketValue;
       return cmp * dir;
     });
   }, [rows, sortKey, sortDir]);
@@ -116,417 +139,510 @@ export default function PortfolioPage() {
     }
   };
 
-  const dcaMonthly = dcaPlans
-    .filter((d) => d.active)
-    .reduce((a, d) => a + d.monthlyEur, 0);
+  const dcaProj = projectDcaMonth(dcaPlans);
 
-  /** First market fetch — show skeletons instead of "…" / 0€. */
   const chartsLoading = fetching && !refreshedAt;
+
+  const allocSlices = (hasTradeRepublic && envelopes.length
+    ? envelopes.map((e) => ({
+        symbol: e.label,
+        value: e.value,
+        pnlPct: e.unmanaged ? null : e.pnlPct,
+        unmanaged: e.unmanaged,
+      }))
+    : rows.map((r) => ({
+        symbol: assetTitle(r.holding.name, r.holding.symbol),
+        value: r.marketValue,
+        pnlPct: r.unmanaged ? null : r.pnlPct,
+        unmanaged: r.unmanaged,
+      }))
+  ).filter((s) => s.value > 0);
 
   if (!loaded) {
     return <PortfolioSkeleton />;
   }
 
+  const majLabel = refreshedAt
+    ? fetching
+      ? "rafraîchissement…"
+      : `maj ${refreshedAt.toLocaleString("fr-FR", {
+          day: "numeric",
+          month: "short",
+          hour: "2-digit",
+          minute: "2-digit",
+        })}`
+    : chartsLoading
+      ? "chargement des cours…"
+      : "—";
+
   return (
-    <div className="space-y-6" aria-busy={fetching}>
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div>
-          <h1 className="text-xl font-semibold text-ink">Portfolio</h1>
-          <p className="text-sm text-ink-muted">
-            Vue d’ensemble ·{" "}
-            {refreshedAt
-              ? fetching
-                ? "rafraîchissement…"
-                : `maj ${refreshedAt.toLocaleTimeString()}`
-              : chartsLoading
-                ? "chargement des cours…"
-                : "—"}
-          </p>
+    <div className="animate-rise space-y-7" aria-busy={fetching}>
+      <div className="grid items-stretch gap-6 lg:grid-cols-[1fr_360px]">
+        <div className="flex flex-col justify-center gap-4 py-1.5">
+          <div className="flex flex-wrap items-center gap-2 font-mono text-[10px] uppercase tracking-[0.09em] text-ink3 sm:text-[11px]">
+            <span className="min-w-0 leading-relaxed">
+              Orientation DCA · {reviewMonthLabel} · {holdings.length}{" "}
+              position{holdings.length === 1 ? "" : "s"}
+              {majLabel !== "—" ? ` · ${majLabel}` : ""}
+            </span>
+            <button
+              type="button"
+              onClick={refresh}
+              disabled={fetching}
+              className="rounded-pill border border-line bg-card px-2.5 py-1 text-[10px] font-semibold normal-case tracking-normal text-ink2 hover:border-ink3 hover:text-ink disabled:opacity-50"
+            >
+              {fetching ? "…" : "Actualiser"}
+            </button>
+          </div>
+          {chartsLoading ? (
+            <Skeleton className="h-14 w-64 max-w-full" />
+          ) : (
+            <div className="text-[40px] font-semibold leading-none tracking-[-0.03em] text-ink tabular sm:text-[50px] lg:text-[58px] lg:tracking-[-0.035em]">
+              {formatCurrency(totalValue, displayCurrency)}
+            </div>
+          )}
+          <div className="flex flex-wrap gap-2">
+            {chartsLoading ? (
+              <>
+                <Skeleton className="h-8 w-48 rounded-pill" />
+                <Skeleton className="h-8 w-44 rounded-pill" />
+                <Skeleton className="h-8 w-40 rounded-pill" />
+              </>
+            ) : (
+              <>
+                <PnlChip
+                  amount={monthPnl}
+                  pct={monthPnlPct}
+                  currency={displayCurrency}
+                  suffix="ce mois"
+                />
+                <PnlChip
+                  amount={totalPnl}
+                  pct={totalPnlPct}
+                  currency={displayCurrency}
+                  suffix="depuis l'achat"
+                />
+                <Link
+                  href="/dca"
+                  className="inline-flex items-center gap-1.5 rounded-pill bg-chip px-3 py-1.5 text-[13px] font-semibold text-ink2 hover:text-ink"
+                  title={
+                    dcaProj.monthlyEur
+                      ? `Projection linéaire · J${dcaProj.day}/${dcaProj.daysInMonth} · ${formatCurrency(dcaProj.mtdProjectedEur, "EUR")} projetés ce mois`
+                      : undefined
+                  }
+                >
+                  {dcaProj.monthlyEur
+                    ? `DCA ≈ ${formatCurrency(dcaProj.dailyEur, "EUR")} / jour · orienter →`
+                    : "Orienter mes DCA →"}
+                </Link>
+              </>
+            )}
+          </div>
+          <div className="flex flex-col gap-2.5">
+            {chartsLoading ? (
+              <Skeleton className="h-11 w-full max-w-[660px] rounded-xl" />
+            ) : (
+              <RiskBanner
+                circuit={circuitBreaker}
+                concentration={concentration}
+              />
+            )}
+          </div>
         </div>
+        {chartsLoading ? (
+          <div className="flex h-full min-h-[220px] flex-col gap-3 rounded-card border border-line bg-card p-[22px] shadow-soft">
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-2.5 w-28" />
+              <Skeleton className="h-6 w-16 rounded-pill" />
+            </div>
+            <Skeleton className="h-10 w-20" />
+            <Skeleton className="h-1.5 w-full rounded-pill" />
+            <Skeleton className="h-3 w-full" />
+            <Skeleton className="h-3 w-[85%]" />
+          </div>
+        ) : (
+          <RegimeCard regime={regime} />
+        )}
       </div>
 
-      {!chartsLoading && (
-        <>
-          <RegimeCard regime={regime} />
-          <RiskBanner
-            circuit={circuitBreaker}
-            concentration={concentration}
-          />
-        </>
-      )}
-
-      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatTile
-          label="Valeur"
-          value={formatCurrency(totalValue, displayCurrency)}
-          hint={`${holdings.length} position${holdings.length === 1 ? "" : "s"}`}
-          loading={chartsLoading}
-        />
-        <StatTile
-          label="P&L total"
-          value={formatSignedCurrency(totalPnl, displayCurrency)}
-          delta={formatPercent(totalPnlPct)}
-          deltaTone={totalPnl > 0 ? "up" : totalPnl < 0 ? "down" : "flat"}
-          hint="vs coût"
-          loading={chartsLoading}
-        />
-        <StatTile
-          label="Aujourd’hui"
-          value={formatSignedCurrency(dayPnl, displayCurrency)}
-          delta={formatPercent(dayPnlPct)}
-          deltaTone={dayPnl > 0 ? "up" : dayPnl < 0 ? "down" : "flat"}
-          hint="vs clôture veille"
-          loading={chartsLoading}
-        />
-        <Link href="/dca" className="block rounded-xl transition hover:brightness-110">
-          <StatTile
-            label="DCA actifs"
-            value={
-              dcaMonthly
-                ? formatCurrency(dcaMonthly, "EUR", { compact: true })
-                : "—"
-            }
-            hint={
-              dcaPlans.length
-                ? `${dcaPlans.filter((d) => d.active).length} actifs · / mois`
-                : "Voir les sparplans →"
-            }
-          />
-        </Link>
-      </section>
-
-      {hasTradeRepublic && envelopes.length > 0 && (
-        <section className="rounded-xl border border-hairline bg-surface p-4">
-          <h2 className="mb-3 text-sm font-semibold text-ink">
-            Investissements
-          </h2>
-          <ul className="divide-y divide-hairline">
-            {envelopes.map((e) => (
-              <li
-                key={e.id}
-                className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0"
-              >
-                <div className="min-w-0">
-                  <div className="font-medium text-ink">{e.label}</div>
-                  <div
-                    className={`text-xs tabular ${
-                      e.unmanaged
-                        ? "text-ink-muted"
-                        : e.pnl > 0
-                          ? "text-good"
-                          : e.pnl < 0
-                            ? "text-critical"
-                            : "text-ink-muted"
-                    }`}
-                  >
-                    {e.unmanaged
-                      ? "Non géré"
-                      : `${formatPercent(e.pnlPct)} depuis l’achat`}
-                  </div>
-                </div>
-                <div className="tabular text-sm font-semibold text-ink">
-                  {formatCurrency(e.value, "EUR")}
-                </div>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      <section className="grid gap-4 lg:grid-cols-5">
-        <div className="rounded-xl border border-hairline bg-surface p-4 lg:col-span-2">
-          <h2 className="mb-3 text-sm font-semibold text-ink">Allocation</h2>
+      <div className="grid gap-5 lg:grid-cols-[5fr_4fr]">
+        <section className="rounded-card border border-line bg-card p-4 shadow-soft sm:p-5 lg:p-[22px]">
+          <div className="mb-4 flex items-baseline justify-between">
+            <span className="text-[15px] font-bold tracking-tight text-ink">
+              Répartition
+            </span>
+            <span className="text-xs text-ink3">
+              {hasTradeRepublic ? "par enveloppe" : "par actif"}
+            </span>
+          </div>
           {chartsLoading ? (
-            <div className="flex flex-col items-center gap-4 py-4">
-              <Skeleton className="h-40 w-40 rounded-full" />
-              <div className="flex w-full flex-col gap-2">
-                <Skeleton className="h-3 w-full" />
-                <Skeleton className="h-3 w-[80%]" />
-                <Skeleton className="h-3 w-[60%]" />
-              </div>
-            </div>
+            <AllocationSkeleton />
           ) : (
-            <AllocationChart slices={allocation} currency={displayCurrency} />
+            <AllocationChart
+              slices={allocSlices}
+              currency={displayCurrency}
+            />
           )}
-        </div>
-        <div className="rounded-xl border border-hairline bg-surface p-4 lg:col-span-3">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-ink">Signaux forts</h2>
+        </section>
+
+        <section className="rounded-card border border-line bg-card p-4 shadow-soft sm:p-5 lg:p-[22px]">
+          <div className="mb-4 flex items-baseline justify-between gap-2">
+            <span className="text-[15px] font-bold tracking-tight text-ink">
+              Pour tes DCA
+            </span>
             <Link
-              href="/signals"
-              className="text-xs font-medium text-s-1 hover:underline"
+              href="/dca"
+              className="text-[12.5px] font-semibold text-accent hover:underline"
             >
-              Tout voir →
+              Orientation →
             </Link>
           </div>
           {chartsLoading ? (
-            <ul className="space-y-3 py-2">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <li key={i} className="flex justify-between gap-3">
-                  <div className="space-y-1.5">
-                    <Skeleton className="h-4 w-36" />
-                    <Skeleton className="h-3 w-56" />
-                  </div>
-                  <Skeleton className="h-4 w-14" />
-                </li>
-              ))}
-            </ul>
+            <SignalsListSkeleton count={3} />
           ) : actionable.length === 0 ? (
-            <p className="py-8 text-center text-sm text-ink-muted">
+            <p className="py-10 text-center text-sm text-ink3">
               {circuitBreaker.active
-                ? "Circuit breaker actif — achats mis en retrait."
-                : "Aucun buy/sell fort — plutôt hold pour l’instant."}
+                ? "Frein mensuel — pas de renforcement DCA pour l’instant."
+                : "Rien de fort — maintenir les sparplans en place."}
             </p>
           ) : (
-            <ul className="divide-y divide-hairline">
+            <ul>
               {actionable.slice(0, 4).map((r) => (
-                <li key={r.holding.id} className="py-3">
+                <li
+                  key={r.holding.id}
+                  className="flex flex-col gap-2 border-b border-line py-3.5 last:border-0"
+                >
                   <Link
                     href={`/asset/${encodeURIComponent(r.holding.id)}`}
-                    className="flex w-full items-center gap-3 rounded-lg px-1 hover:bg-surface-2/60"
+                    className="flex items-center gap-2"
                   >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <AssetLabel
-                          name={r.holding.name}
-                          symbol={r.holding.symbol}
-                          badge={envelopeBadge(r.holding)}
-                          size="sm"
-                        />
-                        <RecommendationBadge
-                          recommendation={r.advice!.recommendation}
-                          size="sm"
-                        />
-                      </div>
-                      <p className="mt-0.5 truncate text-xs text-ink-muted">
-                        {r.advice!.signals[0]?.detail ?? r.holding.symbol}
-                      </p>
-                    </div>
-                    <div className="text-right tabular text-sm font-medium text-ink">
+                    <RecommendationBadge
+                      recommendation={r.advice!.recommendation}
+                      size="sm"
+                    />
+                    <span className="text-sm font-semibold text-ink">
+                      {assetTitle(r.holding.name, r.holding.symbol)}
+                    </span>
+                    {envelopeBadge(r.holding) && (
+                      <span className="rounded-md border border-line px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.05em] text-ink2">
+                        {envelopeBadge(r.holding)}
+                      </span>
+                    )}
+                    <span className="ml-auto text-[13.5px] font-semibold tabular text-ink">
                       {formatCurrency(r.price, displayCurrency)}
-                    </div>
+                    </span>
                   </Link>
+                  <p className="text-[12.5px] leading-snug text-ink2">
+                    {r.advice!.signals[0]?.detail ?? r.holding.symbol}
+                  </p>
                   {isBuyRec(r.advice?.recommendation) && (
-                    <div className="mt-2 px-1">
-                      <SizeHint
-                        size={sizeFor(r)}
-                        currency={displayCurrency}
-                        blocked={circuitBreaker.active}
-                      />
-                    </div>
+                    <SizeHint
+                      size={sizeFor(r)}
+                      currency={displayCurrency}
+                      blocked={circuitBreaker.active}
+                    />
                   )}
                 </li>
               ))}
             </ul>
           )}
-        </div>
-      </section>
+        </section>
+      </div>
 
-      <section className="overflow-hidden rounded-xl border border-hairline bg-surface">
-        <div className="flex items-center justify-between border-b border-hairline px-4 py-3">
-          <h2 className="text-sm font-semibold text-ink">Positions</h2>
+      <section className="overflow-hidden rounded-card border border-line bg-card shadow-soft">
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 pb-3 pt-4 sm:px-5 lg:px-[22px] lg:pb-3.5 lg:pt-5">
+          <span className="text-[15px] font-bold tracking-tight text-ink">
+            Positions
+          </span>
+          <span className="text-xs text-ink3">
+            {holdings.length} lignes · valorisation au dernier cours
+          </span>
           <button
+            type="button"
             onClick={resetToSeed}
-            className="text-xs text-ink-muted hover:text-ink"
+            className="ml-auto text-[12.5px] font-semibold text-ink3 hover:text-ink2"
           >
-            Reset sample
+            Réinitialiser l&apos;exemple
           </button>
         </div>
+
         {holdings.length === 0 ? (
-          <div className="px-4 py-16 text-center text-ink-secondary">
-            Aucune position — Import CSV ou + Add asset.
+          <div className="px-4 py-14 text-center text-ink2 sm:px-[22px] lg:py-16">
+            Aucune position — Importer CSV ou + Ajouter un actif.
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-left text-sm">
-              <thead className="text-xs uppercase tracking-wide text-ink-muted">
-                <tr className="border-b border-hairline">
-                  {(
-                    [
-                      { key: "asset", label: "Asset", className: "" },
-                      { key: "price", label: "Price", className: "" },
-                      {
-                        key: "day",
-                        label: "90d",
-                        className: "hidden md:table-cell",
-                      },
-                      { key: "value", label: "Value", className: "" },
-                      { key: "pnl", label: "P&L", className: "" },
-                      { key: "signal", label: "Signal", className: "" },
-                    ] as const
-                  ).map((col) => {
-                    const active = sortKey === col.key;
-                    return (
-                      <th
-                        key={col.key}
-                        className={`px-4 py-2.5 font-medium ${col.className}`}
+          <>
+            {/* Mobile cards */}
+            <div className="flex flex-col gap-0 border-t border-line lg:hidden">
+              {sortedRows.map((r) => {
+                const spark = (r.chart?.candles ?? [])
+                  .slice(-30)
+                  .map((c) => c.close);
+                const currency =
+                  r.holding.source === "trade-republic"
+                    ? "EUR"
+                    : (r.chart?.currency ?? displayCurrency);
+                const hasValue = r.price > 0 || r.marketValue > 0;
+                const rowLoading =
+                  chartsLoading && !r.unmanaged && !r.chart;
+                const badge = envelopeBadge(r.holding);
+                const pnlTone = r.unmanaged
+                  ? "text-ink3"
+                  : r.pnl > 0
+                    ? "text-pos"
+                    : r.pnl < 0
+                      ? "text-neg"
+                      : "text-ink3";
+
+                return (
+                  <div
+                    key={r.holding.id}
+                    className="border-t border-line px-4 py-3.5 first:border-t-0"
+                  >
+                    <div className="flex items-start gap-3">
+                      <Link
+                        href={`/asset/${encodeURIComponent(r.holding.id)}`}
+                        className="min-w-0 flex-1"
                       >
-                        <button
-                          type="button"
-                          onClick={() => toggleSort(col.key)}
-                          className={`inline-flex items-center gap-1 transition hover:text-ink ${
-                            active ? "text-ink" : ""
-                          }`}
-                        >
-                          {col.label}
-                          <span
-                            className={`text-[10px] ${
-                              active ? "opacity-100" : "opacity-30"
-                            }`}
-                            aria-hidden
-                          >
-                            {active && sortDir === "asc" ? "↑" : "↓"}
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="truncate text-sm font-semibold text-ink">
+                            {assetTitle(r.holding.name, r.holding.symbol)}
                           </span>
-                        </button>
-                      </th>
-                    );
-                  })}
-                  <th className="px-4 py-2.5 font-medium" />
-                </tr>
-              </thead>
-              <tbody>
-                {sortedRows.map((r) => {
-                  const spark = (r.chart?.candles ?? [])
-                    .slice(-90)
-                    .map((c) => c.close);
-                  const currency =
-                    r.holding.source === "trade-republic"
-                      ? "EUR"
-                      : (r.chart?.currency ?? displayCurrency);
-                  const hasValue = r.price > 0 || r.marketValue > 0;
-                  const rowLoading =
-                    chartsLoading && !r.unmanaged && !r.chart;
-                  return (
-                    <tr
-                      key={r.holding.id}
-                      className="border-b border-hairline/60 transition last:border-0 hover:bg-surface-2/50"
-                    >
-                      <td className="px-4 py-3">
-                        <Link
-                          href={`/asset/${encodeURIComponent(r.holding.id)}`}
-                          className="block max-w-[220px]"
-                        >
-                          <AssetLabel
-                            name={r.holding.name}
-                            symbol={r.holding.symbol}
-                            badge={envelopeBadge(r.holding)}
-                            hint={`${formatQuantity(r.holding.quantity)} × ${formatCurrency(r.holding.avgCost, currency)}${
-                              r.holding.pendingCashEur
-                                ? ` · +${formatCurrency(r.holding.pendingCashEur, "EUR")} en attente`
-                                : ""
-                            }`}
-                          />
-                        </Link>
-                      </td>
-                      <td className="px-4 py-3 tabular">
-                        {rowLoading ? (
-                          <div className="space-y-1.5">
-                            <Skeleton className="h-4 w-16" />
-                            <Skeleton className="h-3 w-12" />
-                          </div>
-                        ) : (
-                          <Link
-                            href={`/asset/${encodeURIComponent(r.holding.id)}`}
-                          >
-                            {hasValue ? (
-                              <>
-                                <div className="font-medium text-ink">
-                                  {formatCurrency(r.price, currency)}
-                                </div>
-                                {r.chart && (
-                                  <div
-                                    className={`text-xs ${
-                                      r.dayChangePct > 0
-                                        ? "text-good"
-                                        : r.dayChangePct < 0
-                                          ? "text-critical"
-                                          : "text-ink-muted"
-                                    }`}
-                                  >
-                                    {formatPercent(r.dayChangePct)}
-                                  </div>
-                                )}
-                              </>
-                            ) : (
-                              <span className="text-ink-muted">—</span>
-                            )}
-                          </Link>
-                        )}
-                      </td>
-                      <td className="hidden px-4 py-3 md:table-cell">
-                        {rowLoading ? (
-                          <Skeleton className="h-8 w-20" />
-                        ) : (
-                          <Sparkline values={spark} />
-                        )}
-                      </td>
-                      <td className="px-4 py-3 tabular font-medium text-ink">
-                        {rowLoading ? (
-                          <Skeleton className="h-4 w-16" />
-                        ) : hasValue ? (
-                          formatCurrency(r.marketValue, currency)
-                        ) : (
-                          "—"
-                        )}
-                      </td>
-                      <td className="px-4 py-3 tabular">
-                        {r.unmanaged ? (
-                          <span className="text-xs text-ink-muted">Non géré</span>
-                        ) : rowLoading ? (
-                          <Skeleton className="h-4 w-20" />
-                        ) : hasValue ? (
-                          <span
-                            className={
-                              r.pnl > 0
-                                ? "text-good"
-                                : r.pnl < 0
-                                  ? "text-critical"
-                                  : "text-ink-muted"
-                            }
-                          >
-                            {formatSignedCurrency(r.pnl, currency)}
-                            <span className="ml-1 text-xs opacity-80">
-                              ({formatPercent(r.pnlPct)})
+                          {badge && (
+                            <span className="rounded-md border border-line px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.05em] text-ink2">
+                              {badge}
                             </span>
+                          )}
+                        </div>
+                        <div className="mt-0.5 font-mono text-[10.5px] text-ink3">
+                          {r.holding.symbol}
+                          {" · "}
+                          {formatQuantity(r.holding.quantity)}×
+                        </div>
+                      </Link>
+                      <RecommendationBadge
+                        recommendation={r.advice?.recommendation}
+                        size="sm"
+                        unmanaged={r.unmanaged}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeHolding(r.holding.id)}
+                        className="text-xs text-ink3 hover:text-neg"
+                        aria-label="Retirer"
+                      >
+                        ×
+                      </button>
+                    </div>
+                    <div className="mt-3 flex items-end justify-between gap-3">
+                      <div>
+                        <div className="text-[13.5px] font-semibold tabular text-ink">
+                          {rowLoading ? (
+                            <Skeleton className="h-4 w-16" />
+                          ) : hasValue ? (
+                            formatCurrency(r.marketValue, currency)
+                          ) : (
+                            "—"
+                          )}
+                        </div>
+                        <div className={`mt-0.5 text-[12.5px] font-semibold tabular ${pnlTone}`}>
+                          {r.unmanaged ? (
+                            "—"
+                          ) : rowLoading ? (
+                            <Skeleton className="h-3.5 w-20" />
+                          ) : hasValue ? (
+                            <>
+                              {formatSignedCurrency(r.pnl, currency)}{" "}
+                              <span className="font-medium opacity-70">
+                                {formatPercent(r.pnlPct)}
+                              </span>
+                            </>
+                          ) : (
+                            "—"
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-1.5">
+                        {rowLoading ? (
+                          <Skeleton className="h-6 w-20" />
+                        ) : (
+                          <Sparkline values={spark} width={72} height={24} />
+                        )}
+                        <div className="text-[11.5px] tabular text-ink3">
+                          {rowLoading
+                            ? "…"
+                            : hasValue
+                              ? formatCurrency(r.price, currency)
+                              : "—"}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden overflow-x-auto lg:block">
+              <div className="grid min-w-[860px] grid-cols-[1.7fr_.8fr_.9fr_1fr_1.1fr_1.5fr_1fr_auto] gap-3 px-[22px] py-2 font-mono text-[10px] uppercase tracking-[0.08em] text-ink3">
+                {(
+                  [
+                    { key: "asset" as const, label: "Actif", align: "" },
+                    { key: null, label: "Env.", align: "" },
+                    { key: "price" as const, label: "Prix", align: "text-right" },
+                    {
+                      key: "month" as const,
+                      label: "30 j",
+                      align: "text-center",
+                    },
+                    {
+                      key: "value" as const,
+                      label: "Valeur",
+                      align: "text-right",
+                    },
+                    { key: "pnl" as const, label: "P&L", align: "text-right" },
+                    {
+                      key: "signal" as const,
+                      label: "Signal",
+                      align: "text-right",
+                    },
+                  ] as const
+                ).map((col) =>
+                  col.key ? (
+                    <button
+                      key={col.label}
+                      type="button"
+                      onClick={() => toggleSort(col.key!)}
+                      className={`${col.align} text-left hover:text-ink2 ${
+                        sortKey === col.key ? "text-ink2" : ""
+                      }`}
+                    >
+                      {col.label}
+                      {sortKey === col.key
+                        ? sortDir === "asc"
+                          ? " ↑"
+                          : " ↓"
+                        : ""}
+                    </button>
+                  ) : (
+                    <span key={col.label} className={col.align}>
+                      {col.label}
+                    </span>
+                  ),
+                )}
+                <span />
+              </div>
+
+              {sortedRows.map((r) => {
+                const spark = (r.chart?.candles ?? [])
+                  .slice(-30)
+                  .map((c) => c.close);
+                const currency =
+                  r.holding.source === "trade-republic"
+                    ? "EUR"
+                    : (r.chart?.currency ?? displayCurrency);
+                const hasValue = r.price > 0 || r.marketValue > 0;
+                const rowLoading =
+                  chartsLoading && !r.unmanaged && !r.chart;
+                const badge = envelopeBadge(r.holding);
+
+                return (
+                  <div
+                    key={r.holding.id}
+                    className="grid min-w-[860px] grid-cols-[1.7fr_.8fr_.9fr_1fr_1.1fr_1.5fr_1fr_auto] items-center gap-3 border-t border-line px-[22px] py-2.5 hover:bg-[color-mix(in_srgb,var(--tb-chip)_50%,transparent)]"
+                  >
+                    <Link
+                      href={`/asset/${encodeURIComponent(r.holding.id)}`}
+                      className="min-w-0"
+                    >
+                      <div className="truncate text-sm font-semibold text-ink">
+                        {assetTitle(r.holding.name, r.holding.symbol)}
+                      </div>
+                      <div className="mt-0.5 font-mono text-[10.5px] text-ink3">
+                        {r.holding.symbol}
+                        {" · "}
+                        {formatQuantity(r.holding.quantity)}×
+                      </div>
+                    </Link>
+                    <span className="justify-self-start rounded-md border border-line px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.05em] text-ink2">
+                      {badge ?? "—"}
+                    </span>
+                    <div className="text-right text-[13.5px] tabular text-ink">
+                      {rowLoading ? (
+                        <Skeleton className="ml-auto h-4 w-14" />
+                      ) : hasValue ? (
+                        formatCurrency(r.price, currency)
+                      ) : (
+                        "—"
+                      )}
+                    </div>
+                    <div className="flex justify-center">
+                      {rowLoading ? (
+                        <Skeleton className="h-6 w-20" />
+                      ) : (
+                        <Sparkline values={spark} width={80} height={26} />
+                      )}
+                    </div>
+                    <div className="text-right text-[13.5px] font-semibold tabular text-ink">
+                      {rowLoading ? (
+                        <Skeleton className="ml-auto h-4 w-16" />
+                      ) : hasValue ? (
+                        formatCurrency(r.marketValue, currency)
+                      ) : (
+                        "—"
+                      )}
+                    </div>
+                    <div
+                      className={`text-right text-[13px] font-semibold tabular ${
+                        r.unmanaged
+                          ? "text-ink3"
+                          : r.pnl > 0
+                            ? "text-pos"
+                            : r.pnl < 0
+                              ? "text-neg"
+                              : "text-ink3"
+                      }`}
+                    >
+                      {r.unmanaged ? (
+                        "—"
+                      ) : rowLoading ? (
+                        <Skeleton className="ml-auto h-4 w-20" />
+                      ) : hasValue ? (
+                        <>
+                          {formatSignedCurrency(r.pnl, currency)}{" "}
+                          <span className="font-medium opacity-70">
+                            {formatPercent(r.pnlPct)}
                           </span>
-                        ) : (
-                          "—"
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        {r.unmanaged ? (
-                          <span className="text-xs text-ink-muted">Non géré</span>
-                        ) : rowLoading ? (
-                          <Skeleton className="h-5 w-14" />
-                        ) : r.advice ? (
-                          <RecommendationBadge
-                            recommendation={r.advice.recommendation}
-                            size="sm"
-                          />
-                        ) : (
-                          <span className="text-xs text-ink-muted">n/a</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <button
-                          onClick={() => removeHolding(r.holding.id)}
-                          className="text-xs text-ink-muted hover:text-critical"
-                        >
-                          Remove
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                        </>
+                      ) : (
+                        "—"
+                      )}
+                    </div>
+                    <div className="justify-self-end">
+                      <RecommendationBadge
+                        recommendation={r.advice?.recommendation}
+                        size="sm"
+                        unmanaged={r.unmanaged}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeHolding(r.holding.id)}
+                      className="text-xs text-ink3 hover:text-neg"
+                      aria-label="Retirer"
+                    >
+                      ×
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </>
         )}
       </section>
 
-      <p className="pb-4 text-center text-[11px] text-ink-muted">
-        Signaux techniques heuristiques — pas un conseil financier. Données
-        Yahoo / EODHD · stockage local.
+      <p className="pb-2 text-center text-[11px] text-ink3">
+        Signaux techniques heuristiques — pas un conseil financier.
       </p>
     </div>
   );

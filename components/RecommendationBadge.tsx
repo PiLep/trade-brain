@@ -1,60 +1,61 @@
 import type { Recommendation } from "@/lib/types";
-import { RECOMMENDATION_LABEL } from "@/lib/advice";
 
-// Status colors carry an icon + label so meaning is never color-alone.
 const STYLES: Record<
   Recommendation,
-  { fg: string; bg: string; ring: string; icon: string }
+  { label: string; className: string }
 > = {
   STRONG_BUY: {
-    fg: "text-good",
-    bg: "bg-good/15",
-    ring: "ring-good/40",
-    icon: "▲▲",
+    label: "▲▲ Strong Buy",
+    className: "text-pos bg-[color-mix(in_srgb,var(--tb-pos)_12%,transparent)]",
   },
-  BUY: { fg: "text-good", bg: "bg-good/10", ring: "ring-good/30", icon: "▲" },
+  BUY: {
+    label: "▲ Buy",
+    className: "text-pos bg-[color-mix(in_srgb,var(--tb-pos)_12%,transparent)]",
+  },
   HOLD: {
-    fg: "text-warning",
-    bg: "bg-warning/10",
-    ring: "ring-warning/30",
-    icon: "◆",
+    label: "— Hold",
+    className: "text-ink2 bg-chip",
   },
   SELL: {
-    fg: "text-critical",
-    bg: "bg-critical/10",
-    ring: "ring-critical/30",
-    icon: "▼",
+    label: "▼ Sell",
+    className: "text-neg bg-[color-mix(in_srgb,var(--tb-neg)_12%,transparent)]",
   },
   STRONG_SELL: {
-    fg: "text-critical",
-    bg: "bg-critical/15",
-    ring: "ring-critical/40",
-    icon: "▼▼",
+    label: "▼▼ Strong Sell",
+    className: "text-neg bg-[color-mix(in_srgb,var(--tb-neg)_12%,transparent)]",
   },
 };
 
 export function RecommendationBadge({
   recommendation,
   size = "md",
+  unmanaged,
 }: {
-  recommendation: Recommendation;
+  recommendation?: Recommendation | null;
   size?: "sm" | "md" | "lg";
+  unmanaged?: boolean;
 }) {
+  if (unmanaged || !recommendation) {
+    return (
+      <span className="inline-flex items-center whitespace-nowrap rounded-pill border border-line px-2.5 py-1 text-[11.5px] font-bold text-ink3">
+        Non géré
+      </span>
+    );
+  }
+
   const s = STYLES[recommendation];
   const sizing =
     size === "lg"
       ? "text-sm px-3 py-1.5"
       : size === "sm"
-        ? "text-[11px] px-2 py-0.5"
-        : "text-xs px-2.5 py-1";
+        ? "text-[11.5px] px-2.5 py-1"
+        : "text-[11.5px] px-2.5 py-1";
+
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full font-semibold ring-1 ${s.fg} ${s.bg} ${s.ring} ${sizing}`}
+      className={`inline-flex items-center gap-1 whitespace-nowrap rounded-pill font-bold ${s.className} ${sizing}`}
     >
-      <span aria-hidden className="text-[0.7em] leading-none tracking-tighter">
-        {s.icon}
-      </span>
-      {RECOMMENDATION_LABEL[recommendation]}
+      {s.label}
     </span>
   );
 }
