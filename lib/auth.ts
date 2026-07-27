@@ -3,9 +3,6 @@ import { nextCookies } from "better-auth/next-js";
 import { emailOTP, organization } from "better-auth/plugins";
 import { passkey } from "@better-auth/passkey";
 import { APIError } from "better-auth/api";
-import Database from "better-sqlite3";
-import fs from "fs";
-import path from "path";
 import {
   sendOrganizationInvitationEmail,
   sendOtpEmail,
@@ -19,11 +16,11 @@ import {
 import { getDb } from "@/lib/db";
 import { ensurePersonalOrganization } from "@/lib/tenants";
 
-const DB_DIR = path.join(process.cwd(), "data");
-const DB_PATH = path.join(DB_DIR, "trade-brain.sqlite");
-
-fs.mkdirSync(DB_DIR, { recursive: true });
+// Share one SQLite connection with the rest of the app (tenants, invites).
+// A second better-sqlite3 handle on the same file can make post-OTP org
+// provisioning fail after the code was already consumed → "Invalid OTP" on retry.
 ensureInviteTable();
+const sqlite = getDb();
 
 const appUrl =
   process.env.BETTER_AUTH_URL ||
@@ -43,14 +40,35 @@ function lookupUser(userId: string): {
   email: string;
   name: string;
 } | null {
-  const row = getDb()
+  const row = sqlite
     .prepare(`SELECT id, email, name FROM user WHERE id = ?`)
     .get(userId) as { id: string; email: string; name: string } | undefined;
   return row ?? null;
 }
 
+function tryProvisionPersonalOrganization(user: {
+  id: string;
+  email: string;
+  name?: string | null;
+}): string | null {
+  try {
+    return ensurePersonalOrganization({
+      userId: user.id,
+      email: user.email,
+      name: user.name,
+    });
+  } catch (err) {
+    // Never fail sign-in after a valid OTP was consumed.
+    console.error(
+      "[auth] ensurePersonalOrganization failed; login continues without active org",
+      err,
+    );
+    return null;
+  }
+}
+
 export const auth = betterAuth({
-  database: new Database(DB_PATH),
+  database: sqlite,
   baseURL: appUrl,
   secret: process.env.BETTER_AUTH_SECRET,
   trustedOrigins: [appUrl],
@@ -70,11 +88,7 @@ export const auth = betterAuth({
         },
         after: async (user) => {
           markInviteAccepted(user.email);
-          ensurePersonalOrganization({
-            userId: user.id,
-            email: user.email,
-            name: user.name,
-          });
+          tryProvisionPersonalOrganization(user);
         },
       },
     },
@@ -83,11 +97,8 @@ export const auth = betterAuth({
         before: async (session) => {
           const user = lookupUser(session.userId);
           if (!user) return { data: session };
-          const organizationId = ensurePersonalOrganization({
-            userId: user.id,
-            email: user.email,
-            name: user.name,
-          });
+          const organizationId = tryProvisionPersonalOrganization(user);
+          if (!organizationId) return { data: session };
           return {
             data: {
               ...session,
@@ -102,6 +113,9 @@ export const auth = betterAuth({
     emailOTP({
       otpLength: 6,
       expiresIn: 600,
+      // Avoid rotating the code while a previous email is still in flight
+      // (common cause of "I typed the code from my mail and it's invalid").
+      resendStrategy: "reuse",
       // Sign-up only happens for invited emails (hook + send gate).
       async sendVerificationOTP({ email, otp, type }) {
         if (type === "sign-in" || type === "email-verification") {
