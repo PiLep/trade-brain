@@ -67,6 +67,16 @@ export function UserMenu() {
           <div className="mt-3 flex flex-col gap-1.5">
             <button
               type="button"
+              onClick={() => {
+                setOpen(false);
+                router.push("/tenants");
+              }}
+              className="rounded-pill border border-line px-3 py-1.5 text-left text-[12.5px] font-semibold text-ink2 hover:text-ink"
+            >
+              Gérer les espaces
+            </button>
+            <button
+              type="button"
               disabled={busy}
               onClick={() => void addPasskey()}
               className="rounded-pill border border-line px-3 py-1.5 text-left text-[12.5px] font-semibold text-ink2 hover:text-ink disabled:opacity-50"
