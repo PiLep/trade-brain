@@ -46,7 +46,7 @@ function slugify(input: string): string {
 }
 
 const BOOTSTRAP_FALLBACK =
-  "Impossible d'initialiser ton espace. Réessaie ou lance `npm run auth:migrate` sur le serveur.";
+  "Impossible d'initialiser ton espace. Réessaie après un redémarrage de l’app.";
 
 export function TenantProvider({ children }: { children: ReactNode }) {
   const { data: session, isPending: sessionPending } =

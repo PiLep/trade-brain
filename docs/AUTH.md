@@ -26,7 +26,10 @@ Sans `RESEND_API_KEY`, les e-mails (OTP + invitations d’espace) sont loggés d
 # 1. Secret
 openssl rand -base64 32   # → BETTER_AUTH_SECRET
 
-# 2. Tables Better Auth (user, session, passkey, organization…)
+# 2. Tables Better Auth de base (user, session, account, verification…)
+#    Sur une install neuve uniquement. Les tables organization / member /
+#    invitation / passkey (+ colonne session.activeOrganizationId) sont
+#    créées automatiquement au démarrage de l’app.
 npm run auth:migrate
 
 # 3. Inviter Pierre (table auth_invite)
@@ -59,7 +62,7 @@ Deux options :
 
 - SQLite vit dans `data/` (déjà gitignoré). Il faut un **disque persistant** (VPS, volume) — pas un filesystem éphémère type serverless pur.
 - `PASSKEY_RP_ID` doit matcher le hostname de prod (ex. `app.example.com`).
-- Après mise à jour multi-tenant : `npm run auth:migrate` sur le volume qui tient `data/`. Sans cette migration, l’app peut rester en skeleton ou afficher « Espace indisponible ».
-- Au chargement, le client appelle `POST /api/tenant/bootstrap` (via `requireTenant`) pour provisionner / activer un espace si la session n’en a pas — ne pas compter uniquement sur `organization.create` côté navigateur.
+- Multi-tenant : au démarrage, `getDb()` crée / complète les tables `organization`, `member`, `invitation`, `passkey` et la colonne `session.activeOrganizationId` (pas besoin de `auth:migrate` manuel sur un volume déjà initialisé). Redéploie / redémarre le conteneur pour appliquer.
+- Au chargement, le client appelle `POST /api/tenant/bootstrap` (via `requireTenant`) pour provisionner / activer un espace si la session n’en a pas.
 - Auth et le reste de l’app partagent **une seule** connexion SQLite (`getDb()`). Ne pas ouvrir un second `better-sqlite3` sur le même fichier.
 - OTP email : `resendStrategy: "reuse"` (même code si renvoi pendant la validité) + index unique partiel sur `verification.identifier` pour les OTP, afin d’éviter les faux « Code invalide ».

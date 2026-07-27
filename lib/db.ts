@@ -126,6 +126,83 @@ export function ensureOtpVerificationSingleton(database: Database.Database) {
   }
 }
 
+/**
+ * Create Better Auth organization + passkey tables (and session.activeOrganizationId)
+ * so Docker deploys do not require a manual `auth:migrate` against the volume.
+ * Schema matches `better-auth` getMigrations output for sqlite.
+ *
+ * No-op until core Better Auth tables (`user`) exist — those still come from the
+ * initial `auth:migrate` / first install.
+ */
+export function ensureAuthPluginSchema(database: Database.Database) {
+  if (!tableExists(database, "user")) return;
+
+  if (tableExists(database, "session")) {
+    if (!columnExists(database, "session", "activeOrganizationId")) {
+      database.exec(
+        `ALTER TABLE session ADD COLUMN activeOrganizationId TEXT`,
+      );
+    }
+  }
+
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS organization (
+      id TEXT NOT NULL PRIMARY KEY,
+      name TEXT NOT NULL,
+      slug TEXT NOT NULL UNIQUE,
+      logo TEXT,
+      createdAt DATE NOT NULL,
+      metadata TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS member (
+      id TEXT NOT NULL PRIMARY KEY,
+      organizationId TEXT NOT NULL REFERENCES organization (id) ON DELETE CASCADE,
+      userId TEXT NOT NULL REFERENCES user (id) ON DELETE CASCADE,
+      role TEXT NOT NULL,
+      createdAt DATE NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS invitation (
+      id TEXT NOT NULL PRIMARY KEY,
+      organizationId TEXT NOT NULL REFERENCES organization (id) ON DELETE CASCADE,
+      email TEXT NOT NULL,
+      role TEXT,
+      status TEXT NOT NULL,
+      expiresAt DATE NOT NULL,
+      createdAt DATE NOT NULL,
+      inviterId TEXT NOT NULL REFERENCES user (id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS passkey (
+      id TEXT NOT NULL PRIMARY KEY,
+      name TEXT,
+      publicKey TEXT NOT NULL,
+      userId TEXT NOT NULL REFERENCES user (id) ON DELETE CASCADE,
+      credentialID TEXT NOT NULL,
+      counter INTEGER NOT NULL,
+      deviceType TEXT NOT NULL,
+      backedUp INTEGER NOT NULL,
+      transports TEXT,
+      createdAt DATE,
+      aaguid TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS member_organizationId_idx
+      ON member (organizationId);
+    CREATE INDEX IF NOT EXISTS member_userId_idx
+      ON member (userId);
+    CREATE INDEX IF NOT EXISTS invitation_organizationId_idx
+      ON invitation (organizationId);
+    CREATE INDEX IF NOT EXISTS invitation_email_idx
+      ON invitation (email);
+    CREATE INDEX IF NOT EXISTS passkey_userId_idx
+      ON passkey (userId);
+    CREATE INDEX IF NOT EXISTS passkey_credentialID_idx
+      ON passkey (credentialID);
+  `);
+}
+
 function migrate(database: Database.Database) {
   database.exec(`
     CREATE TABLE IF NOT EXISTS signal_journal (
@@ -165,13 +242,16 @@ function migrate(database: Database.Database) {
       ON signal_journal (organization_id, holding_id, date);
   `);
 
+  ensureAuthPluginSchema(database);
   ensureOtpVerificationSingleton(database);
 }
 
 /** Singleton SQLite connection (Node runtime only). */
 export function getDb(): Database.Database {
   if (db) {
-    // verification may appear after `auth:migrate` while the process is up.
+    // Plugin tables / OTP index may appear after an image upgrade while the
+    // process is still up — keep schema warm on every getDb() call.
+    ensureAuthPluginSchema(db);
     ensureOtpVerificationSingleton(db);
     return db;
   }

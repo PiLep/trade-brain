@@ -5,7 +5,7 @@ describe("missingOrgTablesMessage", () => {
   it("detects sqlite missing-table errors", () => {
     expect(
       missingOrgTablesMessage("SqliteError: no such table: organization"),
-    ).toMatch(/auth:migrate/);
+    ).toMatch(/Redémarre/);
   });
 
   it("returns null for unrelated errors", () => {
