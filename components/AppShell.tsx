@@ -6,12 +6,14 @@ import { useState } from "react";
 import { ImportCsvUiProvider, useImportCsvUi } from "@/lib/importCsvUi";
 import { MarketDataProvider } from "@/lib/marketData";
 import { PortfolioProvider, usePortfolio } from "@/lib/storage";
-import { TenantProvider } from "@/lib/tenant";
+import { TenantProvider, useTenant } from "@/lib/tenant";
 import { ThemeProvider } from "@/lib/theme";
 import { AddAssetDialog } from "@/components/AddAssetDialog";
 import { BottomNav } from "@/components/BottomNav";
 import { GlossaryDrawer } from "@/components/GlossaryDrawer";
 import { ImportCsvDialog } from "@/components/ImportCsvDialog";
+import { PortfolioSkeleton } from "@/components/Skeleton";
+import { TenantBootstrapError } from "@/components/TenantBootstrapError";
 import { UserMenu } from "@/components/UserMenu";
 
 const NAV = [
@@ -41,6 +43,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 function AppShellInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { addHolding, replaceTradeRepublicImport } = usePortfolio();
+  const {
+    loaded: tenantLoaded,
+    tenantId,
+    error: tenantError,
+    retry: retryTenant,
+  } = useTenant();
   const { importOpen, setImportOpen } = useImportCsvUi();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [glossOpen, setGlossOpen] = useState(false);
@@ -53,6 +61,17 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
   if (isBareRoute) {
     return <div className="min-h-dvh bg-bg text-ink">{children}</div>;
   }
+
+  const mainContent = !tenantLoaded ? (
+    <PortfolioSkeleton />
+  ) : !tenantId ? (
+    <TenantBootstrapError
+      error={tenantError || "Espace introuvable."}
+      onRetry={retryTenant}
+    />
+  ) : (
+    children
+  );
 
   return (
     <div className="min-h-dvh bg-bg text-ink">
@@ -106,7 +125,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
       </header>
 
       <main className="mx-auto max-w-shell px-4 pb-[calc(4.5rem+env(safe-area-inset-bottom))] pt-4 sm:px-5 sm:pt-6 lg:px-7 lg:pb-20 lg:pt-8">
-        {children}
+        {mainContent}
       </main>
 
       <BottomNav />

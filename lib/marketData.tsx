@@ -90,10 +90,14 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
     const silent = Boolean(cached) && !force;
     if (!silent) setFetching(true);
 
+    const ac = new AbortController();
+    const timeout = window.setTimeout(() => ac.abort(), 45_000);
+
     (async () => {
       try {
         const res = await fetch(
           `/api/chart?symbols=${encodeURIComponent(requestKey)}&range=${RANGE}`,
+          { signal: ac.signal },
         );
         const json = await res.json();
         if (cancelled) return;
@@ -113,17 +117,28 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
         });
       } catch (err) {
         if (!cancelled && !cached) {
+          const aborted =
+            err instanceof DOMException && err.name === "AbortError";
           setErrors({
-            _: err instanceof Error ? err.message : "Failed to load market data",
+            _: aborted
+              ? "Délai dépassé en chargeant les cours"
+              : err instanceof Error
+                ? err.message
+                : "Failed to load market data",
           });
+          // Unblock UI skeletons that key off fetching && !refreshedAt.
+          setRefreshedAt(new Date());
         }
       } finally {
+        window.clearTimeout(timeout);
         if (!cancelled) setFetching(false);
       }
     })();
 
     return () => {
       cancelled = true;
+      ac.abort();
+      window.clearTimeout(timeout);
     };
   }, [loaded, requestKey, bump]);
 

@@ -6,6 +6,7 @@ import {
   ensurePersonalOrganization,
   isUserMemberOfOrganization,
 } from "@/lib/tenants";
+import { missingOrgTablesMessage } from "@/lib/tenantBootstrap";
 
 export async function requireSession() {
   const session = await auth.api.getSession({
@@ -50,11 +51,26 @@ export async function requireTenant() {
   }
 
   if (!organizationId) {
-    organizationId = ensurePersonalOrganization({
-      userId: session.user.id,
-      email: session.user.email,
-      name: session.user.name,
-    });
+    try {
+      organizationId = ensurePersonalOrganization({
+        userId: session.user.id,
+        email: session.user.email,
+        name: session.user.name,
+      });
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "ensurePersonalOrganization failed";
+      console.error("[auth] requireTenant provision failed", err);
+      const migrateHint = missingOrgTablesMessage(message);
+      return {
+        session: null as null,
+        organizationId: null as null,
+        error: NextResponse.json(
+          { error: migrateHint ?? message },
+          { status: migrateHint ? 503 : 500 },
+        ),
+      };
+    }
     try {
       await auth.api.setActiveOrganization({
         headers: await headers(),

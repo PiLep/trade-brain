@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -18,10 +19,13 @@ export type TenantSummary = {
 };
 
 type TenantApi = {
+  /** True once session/org hooks settled and bootstrap finished (ok or error). */
   loaded: boolean;
   tenantId: string | null;
   tenant: TenantSummary | null;
   tenants: TenantSummary[];
+  error: string | null;
+  retry: () => void;
   refresh: () => Promise<void>;
   setActive: (organizationId: string) => Promise<{ error?: string }>;
   createTenant: (name: string) => Promise<{ error?: string; id?: string }>;
@@ -41,15 +45,34 @@ function slugify(input: string): string {
   return base || `espace-${Date.now().toString(36)}`;
 }
 
+const BOOTSTRAP_FALLBACK =
+  "Impossible d'initialiser ton espace. Réessaie ou lance `npm run auth:migrate` sur le serveur.";
+
 export function TenantProvider({ children }: { children: ReactNode }) {
   const { data: session, isPending: sessionPending } =
     authClient.useSession();
-  const { data: activeOrganization, isPending: activePending } =
-    authClient.useActiveOrganization();
-  const { data: orgList, isPending: listPending, refetch: refetchList } =
-    authClient.useListOrganizations();
+  const {
+    data: activeOrganization,
+    isPending: activePending,
+    refetch: refetchActive,
+  } = authClient.useActiveOrganization();
+  const {
+    data: orgList,
+    isPending: listPending,
+    refetch: refetchList,
+  } = authClient.useListOrganizations();
 
   const [bootstrapping, setBootstrapping] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  /** Local fallback so UI can leave the skeleton before hooks refetch. */
+  const [resolvedId, setResolvedId] = useState<string | null>(null);
+  const bootRef = useRef(false);
+  const userId = session?.user?.id ?? null;
+
+  useEffect(() => {
+    setResolvedId(null);
+    setError(null);
+  }, [userId]);
 
   const tenants: TenantSummary[] = useMemo(
     () =>
@@ -61,74 +84,89 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     [orgList],
   );
 
-  const tenantId = activeOrganization?.id ?? null;
+  const tenantId = activeOrganization?.id ?? resolvedId;
 
   const ensureActive = useCallback(async () => {
-    if (!session?.user) return;
-    if (activeOrganization?.id) return;
-    if (bootstrapping) return;
+    if (!userId) return;
+    if (activeOrganization?.id) {
+      setResolvedId(activeOrganization.id);
+      setError(null);
+      return;
+    }
+    if (bootRef.current) return;
 
+    bootRef.current = true;
     setBootstrapping(true);
+    setError(null);
     try {
-      let list = orgList ?? [];
-      if (!list.length) {
-        const refreshed = await authClient.organization.list();
-        list = refreshed.data ?? [];
-      }
-
-      if (!list.length) {
-        const name =
-          session.user.name?.trim() ||
-          session.user.email.split("@")[0] ||
-          "Mon espace";
-        const created = await authClient.organization.create({
-          name,
-          slug: slugify(session.user.email.split("@")[0] || "espace"),
-        });
-        if (created.data?.id) {
-          await authClient.organization.setActive({
-            organizationId: created.data.id,
-          });
-          await refetchList?.();
-        }
+      const res = await fetch("/api/tenant/bootstrap", { method: "POST" });
+      const json = (await res.json().catch(() => ({}))) as {
+        organizationId?: string;
+        error?: string;
+      };
+      if (!res.ok || !json.organizationId) {
+        setError(
+          typeof json.error === "string" && json.error.trim()
+            ? json.error
+            : BOOTSTRAP_FALLBACK,
+        );
         return;
       }
 
-      await authClient.organization.setActive({
-        organizationId: list[0].id,
+      setResolvedId(json.organizationId);
+      const { error: setErr } = await authClient.organization.setActive({
+        organizationId: json.organizationId,
       });
+      if (setErr) {
+        // Server already activated the org on the session; keep resolvedId.
+        console.warn("[tenant] setActive after bootstrap:", setErr.message);
+      }
+      await Promise.all([refetchList?.(), refetchActive?.()]);
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : BOOTSTRAP_FALLBACK);
     } finally {
+      bootRef.current = false;
       setBootstrapping(false);
     }
-  }, [
-    session?.user,
-    activeOrganization?.id,
-    bootstrapping,
-    orgList,
-    refetchList,
-  ]);
+  }, [userId, activeOrganization?.id, refetchList, refetchActive]);
 
   useEffect(() => {
     if (sessionPending || activePending || listPending) return;
-    if (!session?.user) return;
+    if (!userId) return;
+    if (activeOrganization?.id) {
+      setResolvedId(activeOrganization.id);
+      setError(null);
+      return;
+    }
+    if (error) return;
     void ensureActive();
   }, [
     sessionPending,
     activePending,
     listPending,
-    session?.user,
+    userId,
+    activeOrganization?.id,
+    error,
     ensureActive,
   ]);
 
+  const retry = useCallback(() => {
+    setError(null);
+    bootRef.current = false;
+    void ensureActive();
+  }, [ensureActive]);
+
   const refresh = useCallback(async () => {
-    await refetchList?.();
-  }, [refetchList]);
+    await Promise.all([refetchList?.(), refetchActive?.()]);
+  }, [refetchList, refetchActive]);
 
   const setActive = useCallback(async (organizationId: string) => {
-    const { error } = await authClient.organization.setActive({
+    const { error: setErr } = await authClient.organization.setActive({
       organizationId,
     });
-    if (error) return { error: error.message || "Changement impossible" };
+    if (setErr) return { error: setErr.message || "Changement impossible" };
+    setResolvedId(organizationId);
     return {};
   }, []);
 
@@ -136,15 +174,17 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     async (name: string) => {
       const trimmed = name.trim();
       if (!trimmed) return { error: "Nom requis" };
-      const { data, error } = await authClient.organization.create({
+      const { data, error: createErr } = await authClient.organization.create({
         name: trimmed,
         slug: slugify(trimmed),
       });
-      if (error) return { error: error.message || "Création impossible" };
+      if (createErr)
+        return { error: createErr.message || "Création impossible" };
       if (data?.id) {
         await authClient.organization.setActive({
           organizationId: data.id,
         });
+        setResolvedId(data.id);
         await refetchList?.();
         return { id: data.id };
       }
@@ -153,12 +193,14 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     [refetchList],
   );
 
+  // Leave the skeleton once hooks settle and we either have a tenant or a
+  // hard error — never spin forever with no feedback.
   const loaded =
     !sessionPending &&
     !activePending &&
     !listPending &&
     !bootstrapping &&
-    (!session?.user || !!tenantId);
+    (!userId || !!tenantId || !!error);
 
   const value = useMemo<TenantApi>(
     () => ({
@@ -170,8 +212,16 @@ export function TenantProvider({ children }: { children: ReactNode }) {
             name: activeOrganization.name,
             slug: activeOrganization.slug,
           }
-        : null,
+        : tenantId
+          ? (tenants.find((t) => t.id === tenantId) ?? {
+              id: tenantId,
+              name: "Espace",
+              slug: tenantId,
+            })
+          : null,
       tenants,
+      error,
+      retry,
       refresh,
       setActive,
       createTenant,
@@ -181,6 +231,8 @@ export function TenantProvider({ children }: { children: ReactNode }) {
       tenantId,
       activeOrganization,
       tenants,
+      error,
+      retry,
       refresh,
       setActive,
       createTenant,
