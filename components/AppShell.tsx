@@ -12,8 +12,6 @@ import { AddAssetDialog } from "@/components/AddAssetDialog";
 import { BottomNav } from "@/components/BottomNav";
 import { GlossaryDrawer } from "@/components/GlossaryDrawer";
 import { ImportCsvDialog } from "@/components/ImportCsvDialog";
-import { TenantSwitcher } from "@/components/TenantSwitcher";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { UserMenu } from "@/components/UserMenu";
 
 const NAV = [
@@ -43,7 +41,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 function AppShellInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { addHolding, replaceTradeRepublicImport } = usePortfolio();
-  const { importOpen, setImportOpen, openImportCsv } = useImportCsvUi();
+  const { importOpen, setImportOpen } = useImportCsvUi();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [glossOpen, setGlossOpen] = useState(false);
 
@@ -98,42 +96,11 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
             })}
           </nav>
 
-          <div className="ml-auto flex min-w-0 shrink items-center justify-end gap-1 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] sm:gap-2 lg:gap-2.5 [&::-webkit-scrollbar]:hidden">
-            <TenantSwitcher />
-            <button
-              type="button"
-              onClick={() => setGlossOpen(true)}
-              className="touch-target hidden items-center justify-center whitespace-nowrap rounded-pill border border-line bg-card px-3.5 text-[13px] font-semibold text-ink2 hover:border-ink3 hover:text-ink sm:inline-flex"
-            >
-              Glossaire
-            </button>
-            <button
-              type="button"
-              onClick={() => setGlossOpen(true)}
-              className="touch-target inline-flex shrink-0 items-center justify-center rounded-pill border border-line bg-card text-ink2 hover:border-ink3 hover:text-ink sm:hidden"
-              aria-label="Glossaire"
-              title="Glossaire"
-            >
-              <BookIcon />
-            </button>
-            <ThemeToggle />
-            <button
-              type="button"
-              onClick={openImportCsv}
-              className="touch-target inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-pill border border-line bg-card px-2.5 text-[12px] font-semibold text-ink hover:border-ink3 sm:px-3.5 sm:text-[13px]"
-            >
-              <span className="sm:hidden">CSV</span>
-              <span className="hidden sm:inline">Importer CSV</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setDialogOpen(true)}
-              className="touch-target inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-pill bg-accent px-3 text-[12px] font-semibold text-onacc hover:brightness-110 sm:px-4 sm:text-[13px]"
-            >
-              <span className="sm:hidden">+</span>
-              <span className="hidden sm:inline">+ Ajouter un actif</span>
-            </button>
-            <UserMenu />
+          <div className="ml-auto flex shrink-0 items-center justify-end">
+            <UserMenu
+              onOpenGlossary={() => setGlossOpen(true)}
+              onAddAsset={() => setDialogOpen(true)}
+            />
           </div>
         </div>
       </header>
@@ -159,31 +126,5 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
         }
       />
     </div>
-  );
-}
-
-function BookIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M5 5.5A2.5 2.5 0 0 1 7.5 3H19v15.5H7.5A2.5 2.5 0 0 0 5 21"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M5 5.5V21"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-      />
-      <path
-        d="M9 8h6M9 12h6"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-      />
-    </svg>
   );
 }
