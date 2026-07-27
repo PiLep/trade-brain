@@ -9,7 +9,7 @@ import {
 
 export async function requireSession() {
   const session = await auth.api.getSession({
-    headers: headers(),
+    headers: await headers(),
   });
   if (!session) {
     return {
@@ -57,7 +57,7 @@ export async function requireTenant() {
     });
     try {
       await auth.api.setActiveOrganization({
-        headers: headers(),
+        headers: await headers(),
         body: { organizationId },
       });
     } catch {
