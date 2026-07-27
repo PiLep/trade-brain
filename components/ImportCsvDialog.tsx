@@ -276,8 +276,8 @@ export function ImportCsvDialog({
         className="animate-in flex max-h-[92dvh] w-full max-w-lg flex-col rounded-t-2xl border border-hairline bg-surface shadow-2xl sm:max-h-[84vh] sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-hairline px-5 py-4">
-          <div>
+        <div className="flex items-center justify-between gap-3 border-b border-hairline px-5 py-4">
+          <div className="min-w-0">
             <h2 className="text-lg font-semibold text-ink">
               Import Trade Republic
             </h2>
@@ -286,8 +286,9 @@ export function ImportCsvDialog({
             </p>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="rounded-md px-2 py-1 text-ink-muted hover:bg-surface-2 hover:text-ink"
+            className="touch-target grid shrink-0 place-items-center rounded-pill text-[18px] text-ink-muted hover:bg-surface-2 hover:text-ink"
             aria-label="Close"
           >
             ✕
@@ -302,7 +303,7 @@ export function ImportCsvDialog({
           </ol>
 
           <label
-            className="flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-hairline bg-surface-2 px-4 py-8 text-center hover:border-s-1"
+            className="flex min-h-[7.5rem] cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-hairline bg-surface-2 px-4 py-8 text-center hover:border-s-1"
             onDragOver={(e) => {
               e.preventDefault();
               e.stopPropagation();
@@ -433,11 +434,12 @@ export function ImportCsvDialog({
           )}
         </div>
 
-        <div className="border-t border-hairline px-5 py-4">
+        <div className="border-t border-hairline px-5 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:pb-4">
           <button
+            type="button"
             disabled={!canApply}
             onClick={apply}
-            className="w-full rounded-pill bg-accent py-2.5 text-sm font-semibold text-onacc transition enabled:hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+            className="min-h-12 w-full rounded-pill bg-accent py-3 text-sm font-semibold text-onacc transition enabled:hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Remplacer positions + DCA
           </button>

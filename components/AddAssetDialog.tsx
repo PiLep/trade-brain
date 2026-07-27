@@ -99,14 +99,15 @@ export function AddAssetDialog({
       onClick={onClose}
     >
       <div
-        className="animate-in w-full max-w-md rounded-t-2xl border border-hairline bg-surface p-4 shadow-2xl sm:rounded-2xl sm:p-5"
+        className="animate-in w-full max-w-md rounded-t-2xl border border-hairline bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-2xl sm:rounded-2xl sm:p-5 sm:pb-5"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-4 flex items-center justify-between gap-3">
           <h2 className="text-lg font-semibold text-ink">Add a position</h2>
           <button
+            type="button"
             onClick={onClose}
-            className="rounded-md px-2 py-1 text-ink-muted hover:bg-surface-2 hover:text-ink"
+            className="touch-target grid place-items-center rounded-pill text-[18px] text-ink-muted hover:bg-surface-2 hover:text-ink"
             aria-label="Close"
           >
             ✕
@@ -140,7 +141,7 @@ export function AddAssetDialog({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search e.g. Apple, AAPL, Bitcoin, BTC-USD…"
-              className="w-full rounded-lg border border-hairline bg-surface-2 px-3 py-2 text-sm text-ink outline-none placeholder:text-ink-muted focus:border-s-1"
+              className="min-h-12 w-full rounded-lg border border-hairline bg-surface-2 px-3 py-3 text-base text-ink outline-none placeholder:text-ink-muted focus:border-s-1 sm:min-h-0 sm:py-2 sm:text-sm"
             />
             {(results.length > 0 || searching) && (
               <ul className="absolute z-10 mt-1 max-h-64 w-full overflow-auto rounded-lg border border-hairline bg-surface-2 py-1 shadow-2xl">
@@ -152,11 +153,12 @@ export function AddAssetDialog({
                 {results.map((r) => (
                   <li key={`${r.symbol}-${r.exchange}`}>
                     <button
+                      type="button"
                       onClick={() => {
                         setSelected(r);
                         setResults([]);
                       }}
-                      className="flex w-full items-center justify-between px-3 py-2 text-left hover:bg-plane"
+                      className="flex min-h-12 w-full items-center justify-between px-3 py-3 text-left hover:bg-plane"
                     >
                       <span className="min-w-0">
                         <span className="block truncate font-medium text-ink">
@@ -183,12 +185,13 @@ export function AddAssetDialog({
             </label>
             <input
               type="number"
+              inputMode="decimal"
               min="0"
               step="any"
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
               placeholder="0"
-              className="w-full rounded-lg border border-hairline bg-surface-2 px-3 py-2 text-sm text-ink outline-none focus:border-s-1"
+              className="min-h-12 w-full rounded-lg border border-hairline bg-surface-2 px-3 py-3 text-base text-ink outline-none focus:border-s-1 sm:min-h-0 sm:py-2 sm:text-sm"
             />
           </div>
           <div>
@@ -197,20 +200,22 @@ export function AddAssetDialog({
             </label>
             <input
               type="number"
+              inputMode="decimal"
               min="0"
               step="any"
               value={avgCost}
               onChange={(e) => setAvgCost(e.target.value)}
               placeholder="0.00"
-              className="w-full rounded-lg border border-hairline bg-surface-2 px-3 py-2 text-sm text-ink outline-none focus:border-s-1"
+              className="min-h-12 w-full rounded-lg border border-hairline bg-surface-2 px-3 py-3 text-base text-ink outline-none focus:border-s-1 sm:min-h-0 sm:py-2 sm:text-sm"
             />
           </div>
         </div>
 
         <button
+          type="button"
           disabled={!canSubmit}
           onClick={submit}
-          className="mt-5 w-full rounded-pill bg-accent py-2.5 text-sm font-semibold text-onacc transition enabled:hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+          className="mt-5 min-h-12 w-full rounded-pill bg-accent py-3 text-sm font-semibold text-onacc transition enabled:hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
         >
           Add to portfolio
         </button>
