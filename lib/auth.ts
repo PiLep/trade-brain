@@ -3,6 +3,7 @@ import { nextCookies } from "better-auth/next-js";
 import { emailOTP, organization } from "better-auth/plugins";
 import { passkey } from "@better-auth/passkey";
 import { APIError } from "better-auth/api";
+import Database from "better-sqlite3";
 import {
   sendOrganizationInvitationEmail,
   sendOtpEmail,
@@ -19,8 +20,20 @@ import { ensurePersonalOrganization } from "@/lib/tenants";
 // Share one SQLite connection with the rest of the app (tenants, invites).
 // A second better-sqlite3 handle on the same file can make post-OTP org
 // provisioning fail after the code was already consumed → "Invalid OTP" on retry.
-ensureInviteTable();
-const sqlite = getDb();
+//
+// Skip opening the on-disk DB during `next build` / edge: the build fans out
+// workers that all import this module → SQLITE_BUSY on data/trade-brain.sqlite.
+const isBuildOrEdge =
+  process.env.NEXT_RUNTIME === "edge" ||
+  process.env.NEXT_PHASE === "phase-production-build";
+
+const sqlite = (() => {
+  if (isBuildOrEdge) {
+    return new Database(":memory:");
+  }
+  ensureInviteTable();
+  return getDb();
+})();
 
 const appUrl =
   process.env.BETTER_AUTH_URL ||

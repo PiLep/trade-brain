@@ -24,6 +24,16 @@ RUN addgroup --system --gid 1001 nodejs && \
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
+
+# Rebuild/ensure better-sqlite3 for Alpine after standalone copy (entrypoint migrate).
+USER root
+RUN apk add --no-cache python3 make g++ && \
+    npm install better-sqlite3@12.11.1 --omit=dev && \
+    apk del python3 make g++ && \
+    chmod +x /app/scripts/entrypoint.sh && \
+    chown -R nextjs:nodejs /app/node_modules /app/scripts /app/package.json /app/package-lock.json 2>/dev/null || \
+    chown -R nextjs:nodejs /app/node_modules /app/scripts
 
 USER nextjs
 EXPOSE 3000
@@ -31,4 +41,4 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-CMD ["node", "server.js"]
+ENTRYPOINT ["/app/scripts/entrypoint.sh"]
