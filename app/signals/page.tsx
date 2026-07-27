@@ -101,15 +101,21 @@ export default function SignalsPage() {
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div
+        className="touch-gap -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden"
+        role="tablist"
+        aria-label="Filtrer les signaux"
+      >
         {filters.map((id) => {
           const active = filter === id;
           return (
             <button
               key={id}
               type="button"
+              role="tab"
+              aria-selected={active}
               onClick={() => setFilter(id)}
-              className={`rounded-pill border px-[15px] py-[7px] text-[13px] font-semibold transition ${
+              className={`touch-target shrink-0 rounded-pill border px-4 text-[13px] font-semibold transition ${
                 active
                   ? "border-ink bg-ink text-bg"
                   : "border-line bg-card text-ink2 hover:border-ink3"
@@ -175,7 +181,7 @@ function SignalCard({
     >
       <Link
         href={`/asset/${encodeURIComponent(row.holding.id)}`}
-        className="flex flex-wrap items-center gap-2 sm:gap-2.5"
+        className="flex min-h-11 flex-wrap items-center gap-2 sm:gap-2.5"
       >
         <RecommendationBadge recommendation={rec} size="sm" />
         <span className="min-w-0 flex-1 truncate text-[15px] font-semibold text-ink sm:flex-none">

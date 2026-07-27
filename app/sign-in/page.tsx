@@ -78,7 +78,7 @@ function SignInForm() {
         type="button"
         onClick={() => void signInPasskey()}
         disabled={busy}
-        className="mb-4 w-full rounded-pill border border-line bg-card px-4 py-2.5 text-[13px] font-semibold text-ink hover:border-ink3 disabled:opacity-50"
+        className="mb-4 min-h-12 w-full rounded-pill border border-line bg-card px-4 py-3 text-[14px] font-semibold text-ink hover:border-ink3 disabled:opacity-50"
       >
         Continuer avec une passkey
       </button>
@@ -98,14 +98,14 @@ function SignInForm() {
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="mt-1.5 w-full rounded-xl border border-line bg-card px-3.5 py-2.5 text-[14px] text-ink outline-none focus:border-accent"
+              className="mt-1.5 min-h-12 w-full rounded-xl border border-line bg-card px-3.5 py-3 text-base text-ink outline-none focus:border-accent sm:text-[14px]"
               placeholder="toi@exemple.com"
             />
           </label>
           <button
             type="submit"
             disabled={busy || !email.trim()}
-            className="w-full rounded-pill bg-accent px-4 py-2.5 text-[13px] font-semibold text-onacc disabled:opacity-50"
+            className="min-h-12 w-full rounded-pill bg-accent px-4 py-3 text-[14px] font-semibold text-onacc disabled:opacity-50"
           >
             {busy ? "Envoi…" : "Recevoir un code"}
           </button>
@@ -125,14 +125,14 @@ function SignInForm() {
               maxLength={8}
               value={otp}
               onChange={(e) => setOtp(e.target.value)}
-              className="mt-1.5 w-full rounded-xl border border-line bg-card px-3.5 py-2.5 text-center font-mono text-[18px] tracking-[0.2em] text-ink outline-none focus:border-accent"
+              className="mt-1.5 min-h-12 w-full rounded-xl border border-line bg-card px-3.5 py-3 text-center font-mono text-[18px] tracking-[0.2em] text-ink outline-none focus:border-accent"
               placeholder="••••••"
             />
           </label>
           <button
             type="submit"
             disabled={busy || otp.trim().length < 6}
-            className="w-full rounded-pill bg-accent px-4 py-2.5 text-[13px] font-semibold text-onacc disabled:opacity-50"
+            className="min-h-12 w-full rounded-pill bg-accent px-4 py-3 text-[14px] font-semibold text-onacc disabled:opacity-50"
           >
             {busy ? "Vérification…" : "Se connecter"}
           </button>
@@ -143,7 +143,7 @@ function SignInForm() {
               setOtp("");
               setError(null);
             }}
-            className="w-full text-[12.5px] font-semibold text-ink2 underline"
+            className="touch-target w-full text-[13px] font-semibold text-ink2 underline"
           >
             Changer d’email
           </button>

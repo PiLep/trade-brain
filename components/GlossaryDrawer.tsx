@@ -33,18 +33,18 @@ export function GlossaryDrawer({
         aria-hidden
       />
       <aside
-        className="animate-slide fixed inset-y-0 right-0 z-[61] w-[400px] max-w-[min(88vw,100%)] overflow-y-auto border-l border-line bg-card p-5 pt-[max(1.25rem,env(safe-area-inset-top))] shadow-[-24px_0_60px_rgba(15,15,18,.14)] sm:p-7"
+        className="animate-slide fixed inset-y-0 right-0 z-[61] w-[400px] max-w-[min(100vw,100%)] overflow-y-auto border-l border-line bg-card p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-[max(1.25rem,env(safe-area-inset-top))] shadow-[-24px_0_60px_rgba(15,15,18,.14)] sm:max-w-[min(88vw,100%)] sm:p-7"
         role="dialog"
         aria-label="Glossaire"
       >
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-4 flex items-center justify-between gap-3">
           <span className="font-mono text-[10.5px] font-medium uppercase tracking-[0.09em] text-ink3">
             Glossaire
           </span>
           <button
             type="button"
             onClick={onClose}
-            className="grid h-[30px] w-[30px] place-items-center rounded-pill border border-line bg-card text-[15px] leading-none text-ink2 hover:text-ink"
+            className="touch-target grid place-items-center rounded-pill border border-line bg-card text-[18px] leading-none text-ink2 hover:text-ink"
             aria-label="Fermer"
           >
             ×

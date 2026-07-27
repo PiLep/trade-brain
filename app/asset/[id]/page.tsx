@@ -40,17 +40,21 @@ export default function AssetPage() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <Link href="/" className="text-sm text-ink-muted hover:text-ink">
-          ← Portfolio
+        <Link
+          href="/"
+          className="touch-target inline-flex items-center rounded-pill border border-line bg-card px-3 text-[13px] font-semibold text-ink2 hover:text-ink"
+        >
+          ← Portefeuille
         </Link>
         <button
+          type="button"
           onClick={() => {
             removeHolding(row.holding.id);
             router.push("/");
           }}
-          className="text-xs text-ink-muted hover:text-critical"
+          className="touch-target inline-flex items-center rounded-pill border border-line bg-card px-3 text-[13px] font-semibold text-ink3 hover:border-neg hover:text-neg"
         >
-          Supprimer la position
+          Retirer
         </button>
       </div>
       <AssetDetail

@@ -59,10 +59,49 @@ body {
   background-color: var(--tb-bg);
   color: var(--tb-ink);
   overflow-x: clip;
+  /* Prefer dynamic viewport on mobile browsers (URL bar show/hide). */
+  min-height: 100dvh;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 * {
   box-sizing: border-box;
+}
+
+/* Mobile-first interaction defaults (Apple HIG 44pt / Material 48dp). */
+button,
+a,
+[role="button"],
+summary {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.touch-target {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.touch-gap {
+  gap: 0.5rem; /* 8px minimum between interactive targets */
+}
+
+/* Inputs ≥16px prevent iOS Safari auto-zoom on focus. */
+@layer base {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  @media (min-width: 640px) {
+    input,
+    select,
+    textarea {
+      font-size: inherit;
+    }
+  }
 }
 
 .tabular {
@@ -86,6 +125,13 @@ body {
 }
 ::-webkit-scrollbar-track {
   background: transparent;
+}
+
+@media (max-width: 1023px) {
+  ::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
 }
 
 @keyframes tbrise {
@@ -116,4 +162,12 @@ body {
 }
 .animate-in {
   animation: tbrise 0.18s ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-rise,
+  .animate-slide,
+  .animate-in {
+    animation: none;
+  }
 }
