@@ -60,3 +60,5 @@ Deux options :
 - SQLite vit dans `data/` (déjà gitignoré). Il faut un **disque persistant** (VPS, volume) — pas un filesystem éphémère type serverless pur.
 - `PASSKEY_RP_ID` doit matcher le hostname de prod (ex. `app.example.com`).
 - Après mise à jour multi-tenant : `npm run auth:migrate` sur le volume qui tient `data/`.
+- Auth et le reste de l’app partagent **une seule** connexion SQLite (`getDb()`). Ne pas ouvrir un second `better-sqlite3` sur le même fichier.
+- OTP email : `resendStrategy: "reuse"` (même code si renvoi pendant la validité) + index unique partiel sur `verification.identifier` pour les OTP, afin d’éviter les faux « Code invalide ».

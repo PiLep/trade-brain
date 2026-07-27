@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { authClient } from "@/lib/auth-client";
+import { normalizeOtp, otpErrorMessage } from "@/lib/otp";
 
 type Step = "email" | "otp";
 
@@ -42,15 +43,20 @@ function SignInForm() {
 
   const verifyCode = async (e: React.FormEvent) => {
     e.preventDefault();
+    const code = normalizeOtp(otp);
+    if (code.length < 6) {
+      setError("Saisis les 6 chiffres du code.");
+      return;
+    }
     setBusy(true);
     setError(null);
     const { error: err } = await authClient.signIn.emailOtp({
       email: email.trim().toLowerCase(),
-      otp: otp.trim(),
+      otp: code,
     });
     setBusy(false);
     if (err) {
-      setError(err.message || "Code invalide");
+      setError(otpErrorMessage(err.message));
       return;
     }
     router.replace(next);
@@ -121,17 +127,18 @@ function SignInForm() {
               type="text"
               inputMode="numeric"
               autoComplete="one-time-code"
+              pattern="[0-9]*"
               required
-              maxLength={8}
+              maxLength={6}
               value={otp}
-              onChange={(e) => setOtp(e.target.value)}
+              onChange={(e) => setOtp(normalizeOtp(e.target.value))}
               className="mt-1.5 min-h-12 w-full rounded-xl border border-line bg-card px-3.5 py-3 text-center font-mono text-[18px] tracking-[0.2em] text-ink outline-none focus:border-accent"
               placeholder="••••••"
             />
           </label>
           <button
             type="submit"
-            disabled={busy || otp.trim().length < 6}
+            disabled={busy || normalizeOtp(otp).length < 6}
             className="min-h-12 w-full rounded-pill bg-accent px-4 py-3 text-[14px] font-semibold text-onacc disabled:opacity-50"
           >
             {busy ? "Vérification…" : "Se connecter"}

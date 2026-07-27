@@ -72,6 +72,60 @@ function rebuildJournalForTenants(database: Database.Database) {
   `);
 }
 
+function tableExists(database: Database.Database, table: string): boolean {
+  const row = database
+    .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`)
+    .get(table) as { name: string } | undefined;
+  return !!row;
+}
+
+/**
+ * Keep at most one Better Auth email-OTP row per identifier.
+ * Upstream email-otp only dedupes on unique-constraint failure, but the stock
+ * verification schema does not declare identifier unique (better-auth#10437).
+ */
+export function ensureOtpVerificationSingleton(database: Database.Database) {
+  if (!tableExists(database, "verification")) return;
+
+  const index = database
+    .prepare(
+      `SELECT name FROM sqlite_master
+       WHERE type = 'index' AND name = 'verification_otp_identifier_uidx'`,
+    )
+    .get() as { name: string } | undefined;
+
+  if (!index) {
+    // Drop stale duplicates, keep newest row per OTP identifier.
+    database.exec(`
+      DELETE FROM verification
+      WHERE (
+        identifier LIKE 'sign-in-otp-%'
+        OR identifier LIKE 'email-verification-otp-%'
+        OR identifier LIKE 'forget-password-otp-%'
+        OR identifier LIKE 'change-email-otp-%'
+      )
+      AND rowid NOT IN (
+        SELECT MAX(rowid) FROM verification
+        WHERE
+          identifier LIKE 'sign-in-otp-%'
+          OR identifier LIKE 'email-verification-otp-%'
+          OR identifier LIKE 'forget-password-otp-%'
+          OR identifier LIKE 'change-email-otp-%'
+        GROUP BY identifier
+      );
+    `);
+
+    database.exec(`
+      CREATE UNIQUE INDEX IF NOT EXISTS verification_otp_identifier_uidx
+        ON verification (identifier)
+        WHERE identifier LIKE 'sign-in-otp-%'
+           OR identifier LIKE 'email-verification-otp-%'
+           OR identifier LIKE 'forget-password-otp-%'
+           OR identifier LIKE 'change-email-otp-%';
+    `);
+  }
+}
+
 function migrate(database: Database.Database) {
   database.exec(`
     CREATE TABLE IF NOT EXISTS signal_journal (
@@ -110,11 +164,17 @@ function migrate(database: Database.Database) {
     CREATE UNIQUE INDEX IF NOT EXISTS idx_signal_journal_org_holding_date
       ON signal_journal (organization_id, holding_id, date);
   `);
+
+  ensureOtpVerificationSingleton(database);
 }
 
 /** Singleton SQLite connection (Node runtime only). */
 export function getDb(): Database.Database {
-  if (db) return db;
+  if (db) {
+    // verification may appear after `auth:migrate` while the process is up.
+    ensureOtpVerificationSingleton(db);
+    return db;
+  }
   fs.mkdirSync(DB_DIR, { recursive: true });
   db = new Database(DB_PATH);
   db.pragma("journal_mode = WAL");
