@@ -9,6 +9,8 @@ const PUBLIC = new Set([
 function isPublic(pathname: string): boolean {
   if (PUBLIC.has(pathname)) return true;
   if (pathname.startsWith("/api/auth")) return true;
+  // Allow landing on invite link; page redirects to sign-in if needed.
+  if (pathname.startsWith("/accept-invitation/")) return true;
   return false;
 }
 

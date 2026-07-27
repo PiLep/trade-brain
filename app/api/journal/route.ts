@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireSession } from "@/lib/requireAuth";
+import { requireTenant } from "@/lib/requireAuth";
 import {
   importJournalEntries,
   listJournalEntries,
@@ -16,10 +16,12 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const gate = await requireSession();
+  const gate = await requireTenant();
   if (gate.error) return gate.error;
   try {
-    return NextResponse.json({ entries: listJournalEntries() });
+    return NextResponse.json({
+      entries: listJournalEntries(gate.organizationId!),
+    });
   } catch (e) {
     const message = e instanceof Error ? e.message : "db error";
     return NextResponse.json({ error: message }, { status: 500 });
@@ -33,21 +35,24 @@ type SyncBody = {
 };
 
 export async function POST(req: NextRequest) {
-  const gate = await requireSession();
+  const gate = await requireTenant();
   if (gate.error) return gate.error;
+  const organizationId = gate.organizationId!;
   try {
     const body = (await req.json()) as SyncBody;
     if (body.migrate?.length) {
-      importJournalEntries(body.migrate);
+      importJournalEntries(organizationId, body.migrate);
     }
     if (body.snapshots?.length) {
-      upsertTodaySnapshots(body.snapshots);
+      upsertTodaySnapshots(organizationId, body.snapshots);
     }
     if (body.prices && Object.keys(body.prices).length) {
-      resolveJournalOutcomes(body.prices);
+      resolveJournalOutcomes(organizationId, body.prices);
     }
-    trimJournal();
-    return NextResponse.json({ entries: listJournalEntries() });
+    trimJournal(organizationId);
+    return NextResponse.json({
+      entries: listJournalEntries(organizationId),
+    });
   } catch (e) {
     const message = e instanceof Error ? e.message : "db error";
     return NextResponse.json({ error: message }, { status: 500 });

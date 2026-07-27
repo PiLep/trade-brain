@@ -1,5 +1,5 @@
 /**
- * Server-side signal journal persistence (SQLite).
+ * Server-side signal journal persistence (SQLite), scoped by tenant.
  */
 
 import { getDb } from "@/lib/db";
@@ -13,6 +13,7 @@ const MAX_ENTRIES = 5_000;
 
 type Row = {
   id: string;
+  organization_id: string;
   holding_id: string;
   symbol: string;
   name: string;
@@ -53,26 +54,29 @@ function rowToEntry(r: Row): SignalJournalEntry {
   };
 }
 
-export function listJournalEntries(): SignalJournalEntry[] {
+export function listJournalEntries(
+  organizationId: string,
+): SignalJournalEntry[] {
   const rows = getDb()
     .prepare(
       `SELECT * FROM signal_journal
+       WHERE organization_id = ?
        ORDER BY date DESC, symbol ASC
        LIMIT ?`,
     )
-    .all(MAX_ENTRIES) as Row[];
+    .all(organizationId, MAX_ENTRIES) as Row[];
   return rows.map(rowToEntry);
 }
 
 const UPSERT = `
   INSERT INTO signal_journal (
-    id, holding_id, symbol, name, date, recommendation, score, price,
+    id, organization_id, holding_id, symbol, name, date, recommendation, score, price,
     price5, return5_pct, price20, return20_pct
   ) VALUES (
-    @id, @holding_id, @symbol, @name, @date, @recommendation, @score, @price,
+    @id, @organization_id, @holding_id, @symbol, @name, @date, @recommendation, @score, @price,
     @price5, @return5_pct, @price20, @return20_pct
   )
-  ON CONFLICT(holding_id, date) DO UPDATE SET
+  ON CONFLICT(organization_id, holding_id, date) DO UPDATE SET
     symbol = excluded.symbol,
     name = excluded.name,
     recommendation = excluded.recommendation,
@@ -80,11 +84,12 @@ const UPSERT = `
     price = excluded.price
 `;
 
-function upsertEntry(entry: SignalJournalEntry) {
+function upsertEntry(organizationId: string, entry: SignalJournalEntry) {
   getDb()
     .prepare(UPSERT)
     .run({
       id: entry.id,
+      organization_id: organizationId,
       holding_id: entry.holdingId,
       symbol: entry.symbol,
       name: entry.name,
@@ -100,30 +105,40 @@ function upsertEntry(entry: SignalJournalEntry) {
 }
 
 /** Import legacy / client-migrated rows without overwriting outcome fields blindly. */
-export function importJournalEntries(entries: SignalJournalEntry[]) {
+export function importJournalEntries(
+  organizationId: string,
+  entries: SignalJournalEntry[],
+) {
   const db = getDb();
   const select = db.prepare(
-    `SELECT * FROM signal_journal WHERE holding_id = ? AND date = ?`,
+    `SELECT * FROM signal_journal
+     WHERE organization_id = ? AND holding_id = ? AND date = ?`,
   );
   const tx = db.transaction((list: SignalJournalEntry[]) => {
     for (const e of list) {
       if (!(e.price > 0) || !e.holdingId || !e.date) continue;
-      const existing = select.get(e.holdingId, e.date) as Row | undefined;
+      const existing = select.get(
+        organizationId,
+        e.holdingId,
+        e.date,
+      ) as Row | undefined;
       if (!existing) {
-        upsertEntry({
+        upsertEntry(organizationId, {
           ...e,
-          id: e.id || `sig_${e.holdingId}_${e.date}`,
+          // Always tenant-scope primary keys to avoid cross-tenant collisions.
+          id: `sig_${organizationId}_${e.holdingId}_${e.date}`,
         });
         continue;
       }
       // Prefer already-resolved outcomes; refresh live fields from migrate payload.
-      upsertEntry({
+      upsertEntry(organizationId, {
         id: existing.id,
         holdingId: e.holdingId,
         symbol: e.symbol || existing.symbol,
         name: e.name || existing.name,
         date: e.date,
-        recommendation: e.recommendation || (existing.recommendation as Recommendation),
+        recommendation:
+          e.recommendation || (existing.recommendation as Recommendation),
         score: e.score ?? existing.score,
         price: e.price || existing.price,
         price5: existing.price5 ?? e.price5,
@@ -136,25 +151,30 @@ export function importJournalEntries(entries: SignalJournalEntry[]) {
   tx(entries);
 }
 
-export function upsertTodaySnapshots(inputs: SnapshotInput[]): number {
+export function upsertTodaySnapshots(
+  organizationId: string,
+  inputs: SnapshotInput[],
+): number {
   const date = todayIso();
   const db = getDb();
   const select = db.prepare(
-    `SELECT * FROM signal_journal WHERE holding_id = ? AND date = ?`,
+    `SELECT * FROM signal_journal
+     WHERE organization_id = ? AND holding_id = ? AND date = ?`,
   );
   let n = 0;
   const tx = db.transaction((list: SnapshotInput[]) => {
     for (const input of list) {
       if (!(input.price > 0)) continue;
-      if (
-        input.recommendation === "HOLD" ||
-        !input.recommendation
-      ) {
+      if (input.recommendation === "HOLD" || !input.recommendation) {
         continue;
       }
-      const existing = select.get(input.holdingId, date) as Row | undefined;
-      upsertEntry({
-        id: existing?.id ?? `sig_${input.holdingId}_${date}`,
+      const existing = select.get(
+        organizationId,
+        input.holdingId,
+        date,
+      ) as Row | undefined;
+      upsertEntry(organizationId, {
+        id: existing?.id ?? `sig_${organizationId}_${input.holdingId}_${date}`,
         holdingId: input.holdingId,
         symbol: input.symbol,
         name: input.name,
@@ -175,6 +195,7 @@ export function upsertTodaySnapshots(inputs: SnapshotInput[]): number {
 }
 
 export function resolveJournalOutcomes(
+  organizationId: string,
   pricesByHoldingId: Record<string, number>,
 ): number {
   const today = todayIso();
@@ -182,9 +203,10 @@ export function resolveJournalOutcomes(
   const pending = db
     .prepare(
       `SELECT * FROM signal_journal
-       WHERE return5_pct IS NULL OR return20_pct IS NULL`,
+       WHERE organization_id = ?
+         AND (return5_pct IS NULL OR return20_pct IS NULL)`,
     )
-    .all() as Row[];
+    .all(organizationId) as Row[];
 
   const update = db.prepare(`
     UPDATE signal_journal SET
@@ -192,7 +214,7 @@ export function resolveJournalOutcomes(
       return5_pct = @return5_pct,
       price20 = @price20,
       return20_pct = @return20_pct
-    WHERE id = @id
+    WHERE id = @id AND organization_id = @organization_id
   `);
 
   let changed = 0;
@@ -219,6 +241,7 @@ export function resolveJournalOutcomes(
       if (!dirty) continue;
       update.run({
         id: e.id,
+        organization_id: organizationId,
         price5,
         return5_pct: return5,
         price20,
@@ -231,15 +254,18 @@ export function resolveJournalOutcomes(
   return changed;
 }
 
-/** Drop oldest rows beyond MAX_ENTRIES. */
-export function trimJournal() {
+/** Drop oldest rows beyond MAX_ENTRIES for one tenant. */
+export function trimJournal(organizationId: string) {
   getDb()
     .prepare(
-      `DELETE FROM signal_journal WHERE id NOT IN (
-         SELECT id FROM signal_journal
-         ORDER BY date DESC, id DESC
-         LIMIT ?
-       )`,
+      `DELETE FROM signal_journal
+       WHERE organization_id = ?
+         AND id NOT IN (
+           SELECT id FROM signal_journal
+           WHERE organization_id = ?
+           ORDER BY date DESC, id DESC
+           LIMIT ?
+         )`,
     )
-    .run(MAX_ENTRIES);
+    .run(organizationId, organizationId, MAX_ENTRIES);
 }

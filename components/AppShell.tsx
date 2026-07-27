@@ -6,11 +6,13 @@ import { useState } from "react";
 import { ImportCsvUiProvider, useImportCsvUi } from "@/lib/importCsvUi";
 import { MarketDataProvider } from "@/lib/marketData";
 import { PortfolioProvider, usePortfolio } from "@/lib/storage";
+import { TenantProvider } from "@/lib/tenant";
 import { ThemeProvider } from "@/lib/theme";
 import { AddAssetDialog } from "@/components/AddAssetDialog";
 import { BottomNav } from "@/components/BottomNav";
 import { GlossaryDrawer } from "@/components/GlossaryDrawer";
 import { ImportCsvDialog } from "@/components/ImportCsvDialog";
+import { TenantSwitcher } from "@/components/TenantSwitcher";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { UserMenu } from "@/components/UserMenu";
 
@@ -19,18 +21,21 @@ const NAV = [
   { href: "/", label: "Portefeuille" },
   { href: "/signals", label: "Signaux" },
   { href: "/journal", label: "Journal" },
+  { href: "/tenants", label: "Espaces" },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider>
-      <PortfolioProvider>
-        <MarketDataProvider>
-          <ImportCsvUiProvider>
-            <AppShellInner>{children}</AppShellInner>
-          </ImportCsvUiProvider>
-        </MarketDataProvider>
-      </PortfolioProvider>
+      <TenantProvider>
+        <PortfolioProvider>
+          <MarketDataProvider>
+            <ImportCsvUiProvider>
+              <AppShellInner>{children}</AppShellInner>
+            </ImportCsvUiProvider>
+          </MarketDataProvider>
+        </PortfolioProvider>
+      </TenantProvider>
     </ThemeProvider>
   );
 }
@@ -43,7 +48,9 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
   const [glossOpen, setGlossOpen] = useState(false);
 
   const isBareRoute =
-    pathname.startsWith("/sign-in") || pathname === "/forbidden";
+    pathname.startsWith("/sign-in") ||
+    pathname === "/forbidden" ||
+    pathname.startsWith("/accept-invitation/");
 
   if (isBareRoute) {
     return <div className="min-h-dvh bg-bg text-ink">{children}</div>;
@@ -92,6 +99,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
           </nav>
 
           <div className="ml-auto flex min-w-0 shrink items-center justify-end gap-1 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] sm:gap-2 lg:gap-2.5 [&::-webkit-scrollbar]:hidden">
+            <TenantSwitcher />
             <button
               type="button"
               onClick={() => setGlossOpen(true)}

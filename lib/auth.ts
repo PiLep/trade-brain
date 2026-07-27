@@ -1,17 +1,23 @@
 import { betterAuth } from "better-auth";
 import { nextCookies } from "better-auth/next-js";
-import { emailOTP } from "better-auth/plugins";
+import { emailOTP, organization } from "better-auth/plugins";
 import { passkey } from "@better-auth/passkey";
 import { APIError } from "better-auth/api";
 import Database from "better-sqlite3";
 import fs from "fs";
 import path from "path";
-import { sendOtpEmail } from "@/lib/email";
 import {
+  sendOrganizationInvitationEmail,
+  sendOtpEmail,
+} from "@/lib/email";
+import {
+  addInvite,
   ensureInviteTable,
   isEmailInvited,
   markInviteAccepted,
 } from "@/lib/invites";
+import { getDb } from "@/lib/db";
+import { ensurePersonalOrganization } from "@/lib/tenants";
 
 const DB_DIR = path.join(process.cwd(), "data");
 const DB_PATH = path.join(DB_DIR, "trade-brain.sqlite");
@@ -31,6 +37,17 @@ const hostname = (() => {
     return "localhost";
   }
 })();
+
+function lookupUser(userId: string): {
+  id: string;
+  email: string;
+  name: string;
+} | null {
+  const row = getDb()
+    .prepare(`SELECT id, email, name FROM user WHERE id = ?`)
+    .get(userId) as { id: string; email: string; name: string } | undefined;
+  return row ?? null;
+}
 
 export const auth = betterAuth({
   database: new Database(DB_PATH),
@@ -53,6 +70,30 @@ export const auth = betterAuth({
         },
         after: async (user) => {
           markInviteAccepted(user.email);
+          ensurePersonalOrganization({
+            userId: user.id,
+            email: user.email,
+            name: user.name,
+          });
+        },
+      },
+    },
+    session: {
+      create: {
+        before: async (session) => {
+          const user = lookupUser(session.userId);
+          if (!user) return { data: session };
+          const organizationId = ensurePersonalOrganization({
+            userId: user.id,
+            email: user.email,
+            name: user.name,
+          });
+          return {
+            data: {
+              ...session,
+              activeOrganizationId: organizationId,
+            },
+          };
         },
       },
     },
@@ -77,6 +118,24 @@ export const auth = betterAuth({
       rpID: process.env.PASSKEY_RP_ID || hostname,
       rpName: "Trade Brain",
       origin: appUrl,
+    }),
+    organization({
+      allowUserToCreateOrganization: true,
+      organizationLimit: 20,
+      membershipLimit: 50,
+      creatorRole: "owner",
+      async sendInvitationEmail(data) {
+        // Org invite also unlocks app sign-in (invite-only gate).
+        addInvite(data.email);
+        const inviteLink = `${appUrl}/accept-invitation/${data.id}`;
+        await sendOrganizationInvitationEmail({
+          to: data.email,
+          inviterName:
+            data.inviter.user.name || data.inviter.user.email || "Un membre",
+          organizationName: data.organization.name,
+          inviteLink,
+        });
+      },
     }),
     nextCookies(),
   ],

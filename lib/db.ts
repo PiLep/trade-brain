@@ -7,10 +7,44 @@ const DB_PATH = path.join(DB_DIR, "trade-brain.sqlite");
 
 let db: Database.Database | null = null;
 
-function migrate(database: Database.Database) {
+function columnExists(
+  database: Database.Database,
+  table: string,
+  column: string,
+): boolean {
+  const cols = database.prepare(`PRAGMA table_info(${table})`).all() as Array<{
+    name: string;
+  }>;
+  return cols.some((c) => c.name === column);
+}
+
+function hasLegacyHoldingDateUnique(database: Database.Database): boolean {
+  const indexes = database
+    .prepare(`PRAGMA index_list(signal_journal)`)
+    .all() as Array<{ name: string; unique: number; origin: string }>;
+  for (const idx of indexes) {
+    if (!idx.unique) continue;
+    const info = database
+      .prepare(`PRAGMA index_info(${idx.name})`)
+      .all() as Array<{ name: string }>;
+    const cols = info.map((i) => i.name);
+    if (
+      cols.length === 2 &&
+      cols.includes("holding_id") &&
+      cols.includes("date") &&
+      !cols.includes("organization_id")
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function rebuildJournalForTenants(database: Database.Database) {
   database.exec(`
-    CREATE TABLE IF NOT EXISTS signal_journal (
+    CREATE TABLE signal_journal_new (
       id TEXT PRIMARY KEY,
+      organization_id TEXT NOT NULL DEFAULT '',
       holding_id TEXT NOT NULL,
       symbol TEXT NOT NULL,
       name TEXT NOT NULL,
@@ -21,11 +55,60 @@ function migrate(database: Database.Database) {
       price5 REAL,
       return5_pct REAL,
       price20 REAL,
-      return20_pct REAL,
-      UNIQUE (holding_id, date)
+      return20_pct REAL
     );
+    INSERT INTO signal_journal_new (
+      id, organization_id, holding_id, symbol, name, date,
+      recommendation, score, price, price5, return5_pct, price20, return20_pct
+    )
+    SELECT
+      id,
+      COALESCE(organization_id, ''),
+      holding_id, symbol, name, date,
+      recommendation, score, price, price5, return5_pct, price20, return20_pct
+    FROM signal_journal;
+    DROP TABLE signal_journal;
+    ALTER TABLE signal_journal_new RENAME TO signal_journal;
+  `);
+}
+
+function migrate(database: Database.Database) {
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS signal_journal (
+      id TEXT PRIMARY KEY,
+      organization_id TEXT NOT NULL DEFAULT '',
+      holding_id TEXT NOT NULL,
+      symbol TEXT NOT NULL,
+      name TEXT NOT NULL,
+      date TEXT NOT NULL,
+      recommendation TEXT NOT NULL,
+      score REAL NOT NULL,
+      price REAL NOT NULL,
+      price5 REAL,
+      return5_pct REAL,
+      price20 REAL,
+      return20_pct REAL
+    );
+  `);
+
+  if (!columnExists(database, "signal_journal", "organization_id")) {
+    // Old installs: add column, then rebuild to drop table-level UNIQUE(holding_id, date).
+    database.exec(`
+      ALTER TABLE signal_journal
+        ADD COLUMN organization_id TEXT NOT NULL DEFAULT '';
+    `);
+    rebuildJournalForTenants(database);
+  } else if (hasLegacyHoldingDateUnique(database)) {
+    rebuildJournalForTenants(database);
+  }
+
+  database.exec(`
     CREATE INDEX IF NOT EXISTS idx_signal_journal_date
       ON signal_journal (date DESC);
+    CREATE INDEX IF NOT EXISTS idx_signal_journal_org_date
+      ON signal_journal (organization_id, date DESC);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_signal_journal_org_holding_date
+      ON signal_journal (organization_id, holding_id, date);
   `);
 }
 

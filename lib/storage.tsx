@@ -11,10 +11,14 @@ import {
 } from "react";
 import type { ImportMeta } from "./month";
 import type { DcaPlan, Holding } from "./types";
+import { useTenant } from "./tenant";
 
-const STORAGE_KEY = "trade-brain.portfolio.v1";
-const DCA_KEY = "trade-brain.dca.v1";
-const IMPORT_META_KEY = "trade-brain.import-meta.v1";
+const STORAGE_PREFIX = "trade-brain.portfolio.v1";
+const DCA_PREFIX = "trade-brain.dca.v1";
+const IMPORT_META_PREFIX = "trade-brain.import-meta.v1";
+const LEGACY_STORAGE_KEY = "trade-brain.portfolio.v1";
+const LEGACY_DCA_KEY = "trade-brain.dca.v1";
+const LEGACY_IMPORT_META_KEY = "trade-brain.import-meta.v1";
 
 const SEED: Holding[] = [
   {
@@ -59,38 +63,80 @@ function makeId(): string {
   return `h_${Math.random().toString(36).slice(2, 10)}`;
 }
 
-function loadHoldings(): Holding[] {
+function storageKey(tenantId: string) {
+  return `${STORAGE_PREFIX}:${tenantId}`;
+}
+function dcaKey(tenantId: string) {
+  return `${DCA_PREFIX}:${tenantId}`;
+}
+function importMetaKey(tenantId: string) {
+  return `${IMPORT_META_PREFIX}:${tenantId}`;
+}
+
+function readJsonArray<T>(key: string): T[] | null {
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as T[]) : null;
+  } catch {
+    return null;
+  }
+}
+
+function loadHoldings(tenantId: string): Holding[] {
   if (typeof window === "undefined") return SEED;
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return SEED;
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return SEED;
-    return parsed;
-  } catch {
-    return SEED;
+  const scoped = readJsonArray<Holding>(storageKey(tenantId));
+  if (scoped) return scoped;
+
+  // One-time migrate of pre-tenant local data into the first active space.
+  const legacy = readJsonArray<Holding>(LEGACY_STORAGE_KEY);
+  if (legacy) {
+    try {
+      window.localStorage.setItem(
+        storageKey(tenantId),
+        JSON.stringify(legacy),
+      );
+      window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+    } catch {
+      /* ignore */
+    }
+    return legacy;
   }
+  return SEED;
 }
 
-function loadDcas(): DcaPlan[] {
+function loadDcas(tenantId: string): DcaPlan[] {
   if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(DCA_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
+  const scoped = readJsonArray<DcaPlan>(dcaKey(tenantId));
+  if (scoped) return scoped;
+  const legacy = readJsonArray<DcaPlan>(LEGACY_DCA_KEY);
+  if (legacy) {
+    try {
+      window.localStorage.setItem(dcaKey(tenantId), JSON.stringify(legacy));
+      window.localStorage.removeItem(LEGACY_DCA_KEY);
+    } catch {
+      /* ignore */
+    }
+    return legacy;
   }
+  return [];
 }
 
-function loadImportMeta(): ImportMeta | null {
+function loadImportMeta(tenantId: string): ImportMeta | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = window.localStorage.getItem(IMPORT_META_KEY);
+    const raw =
+      window.localStorage.getItem(importMetaKey(tenantId)) ??
+      window.localStorage.getItem(LEGACY_IMPORT_META_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as ImportMeta;
-    return parsed?.importedAt ? parsed : null;
+    if (!parsed?.importedAt) return null;
+    if (!window.localStorage.getItem(importMetaKey(tenantId))) {
+      window.localStorage.setItem(importMetaKey(tenantId), raw);
+      window.localStorage.removeItem(LEGACY_IMPORT_META_KEY);
+    }
+    return parsed;
   } catch {
     return null;
   }
@@ -117,51 +163,64 @@ type PortfolioApi = {
 const PortfolioContext = createContext<PortfolioApi | null>(null);
 
 export function PortfolioProvider({ children }: { children: ReactNode }) {
+  const { tenantId, loaded: tenantLoaded } = useTenant();
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [dcaPlans, setDcaPlans] = useState<DcaPlan[]>([]);
   const [importMeta, setImportMeta] = useState<ImportMeta | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [activeTenantId, setActiveTenantId] = useState<string | null>(null);
 
   useEffect(() => {
-    setHoldings(loadHoldings());
-    setDcaPlans(loadDcas());
-    setImportMeta(loadImportMeta());
+    if (!tenantLoaded || !tenantId) {
+      setLoaded(false);
+      return;
+    }
+    setHoldings(loadHoldings(tenantId));
+    setDcaPlans(loadDcas(tenantId));
+    setImportMeta(loadImportMeta(tenantId));
+    setActiveTenantId(tenantId);
     setLoaded(true);
-  }, []);
+  }, [tenantId, tenantLoaded]);
 
   useEffect(() => {
-    if (!loaded) return;
+    if (!loaded || !activeTenantId) return;
     try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(holdings));
+      window.localStorage.setItem(
+        storageKey(activeTenantId),
+        JSON.stringify(holdings),
+      );
     } catch {
       /* ignore */
     }
-  }, [holdings, loaded]);
+  }, [holdings, loaded, activeTenantId]);
 
   useEffect(() => {
-    if (!loaded) return;
+    if (!loaded || !activeTenantId) return;
     try {
-      window.localStorage.setItem(DCA_KEY, JSON.stringify(dcaPlans));
+      window.localStorage.setItem(
+        dcaKey(activeTenantId),
+        JSON.stringify(dcaPlans),
+      );
     } catch {
       /* ignore */
     }
-  }, [dcaPlans, loaded]);
+  }, [dcaPlans, loaded, activeTenantId]);
 
   useEffect(() => {
-    if (!loaded) return;
+    if (!loaded || !activeTenantId) return;
     try {
       if (importMeta) {
         window.localStorage.setItem(
-          IMPORT_META_KEY,
+          importMetaKey(activeTenantId),
           JSON.stringify(importMeta),
         );
       } else {
-        window.localStorage.removeItem(IMPORT_META_KEY);
+        window.localStorage.removeItem(importMetaKey(activeTenantId));
       }
     } catch {
       /* ignore */
     }
-  }, [importMeta, loaded]);
+  }, [importMeta, loaded, activeTenantId]);
 
   const addHolding = useCallback((h: Omit<Holding, "id" | "addedAt">) => {
     setHoldings((prev) => {
@@ -273,7 +332,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       holdings,
       dcaPlans,
       importMeta,
-      loaded,
+      loaded: loaded && tenantLoaded && !!tenantId,
       addHolding,
       updateHolding,
       removeHolding,
@@ -285,6 +344,8 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       dcaPlans,
       importMeta,
       loaded,
+      tenantLoaded,
+      tenantId,
       addHolding,
       updateHolding,
       removeHolding,
