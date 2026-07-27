@@ -189,7 +189,7 @@ export default function PortfolioPage() {
               type="button"
               onClick={refresh}
               disabled={fetching}
-              className="rounded-pill border border-line bg-card px-2.5 py-1 text-[10px] font-semibold normal-case tracking-normal text-ink2 hover:border-ink3 hover:text-ink disabled:opacity-50"
+              className="touch-target inline-flex items-center rounded-pill border border-line bg-card px-3 text-[12px] font-semibold normal-case tracking-normal text-ink2 hover:border-ink3 hover:text-ink disabled:opacity-50"
             >
               {fetching ? "…" : "Actualiser"}
             </button>
@@ -222,9 +222,9 @@ export default function PortfolioPage() {
                   currency={displayCurrency}
                   suffix="depuis l'achat"
                 />
-                <Link
+                  <Link
                   href="/dca"
-                  className="inline-flex items-center gap-1.5 rounded-pill bg-chip px-3 py-1.5 text-[13px] font-semibold text-ink2 hover:text-ink"
+                  className="touch-target inline-flex items-center gap-1.5 rounded-pill bg-chip px-3 text-[13px] font-semibold text-ink2 hover:text-ink"
                   title={
                     dcaProj.monthlyEur
                       ? `Projection linéaire · J${dcaProj.day}/${dcaProj.daysInMonth} · ${formatCurrency(dcaProj.mtdProjectedEur, "EUR")} projetés ce mois`
@@ -402,7 +402,7 @@ export default function PortfolioPage() {
                     <div className="flex items-start gap-3">
                       <Link
                         href={`/asset/${encodeURIComponent(r.holding.id)}`}
-                        className="min-w-0 flex-1"
+                        className="min-w-0 flex-1 py-0.5"
                       >
                         <div className="flex flex-wrap items-center gap-1.5">
                           <span className="truncate text-sm font-semibold text-ink">
@@ -428,7 +428,7 @@ export default function PortfolioPage() {
                       <button
                         type="button"
                         onClick={() => removeHolding(r.holding.id)}
-                        className="text-xs text-ink3 hover:text-neg"
+                        className="touch-target -mr-1 grid shrink-0 place-items-center text-lg leading-none text-ink3 hover:text-neg"
                         aria-label="Retirer"
                       >
                         ×
@@ -628,7 +628,7 @@ export default function PortfolioPage() {
                     <button
                       type="button"
                       onClick={() => removeHolding(r.holding.id)}
-                      className="text-xs text-ink3 hover:text-neg"
+                      className="touch-target grid place-items-center text-lg leading-none text-ink3 hover:text-neg"
                       aria-label="Retirer"
                     >
                       ×

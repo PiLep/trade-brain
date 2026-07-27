@@ -20,11 +20,15 @@ export function UserMenu() {
 
   useEffect(() => {
     if (!open) return;
-    const onDoc = (e: MouseEvent) => {
+    const onDoc = (e: MouseEvent | TouchEvent) => {
       if (!root.current?.contains(e.target as Node)) setOpen(false);
     };
     document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
+    document.addEventListener("touchstart", onDoc);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("touchstart", onDoc);
+    };
   }, [open]);
 
   const addPasskey = async () => {
@@ -54,17 +58,18 @@ export function UserMenu() {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="grid h-8 w-8 place-items-center rounded-pill border border-line bg-card text-[12px] font-bold text-ink"
+        className="touch-target grid place-items-center rounded-pill border border-line bg-card text-[13px] font-bold text-ink"
         aria-label="Compte"
+        aria-expanded={open}
       >
         {initial}
       </button>
       {open && (
-        <div className="absolute right-0 z-50 mt-2 w-64 rounded-card border border-line bg-card p-3 shadow-soft">
-          <p className="truncate text-[12.5px] font-semibold text-ink">
+        <div className="absolute right-0 z-50 mt-2 w-[min(18rem,calc(100vw-1.5rem))] rounded-card border border-line bg-card p-3 shadow-soft">
+          <p className="truncate px-1 text-[13px] font-semibold text-ink">
             {email ?? "…"}
           </p>
-          <div className="mt-3 flex flex-col gap-1.5">
+          <div className="mt-3 flex flex-col gap-2">
             <button
               type="button"
               onClick={() => {
@@ -79,20 +84,20 @@ export function UserMenu() {
               type="button"
               disabled={busy}
               onClick={() => void addPasskey()}
-              className="rounded-pill border border-line px-3 py-1.5 text-left text-[12.5px] font-semibold text-ink2 hover:text-ink disabled:opacity-50"
+              className="touch-target rounded-pill border border-line px-3 text-left text-[13px] font-semibold text-ink2 hover:text-ink disabled:opacity-50"
             >
               Ajouter une passkey
             </button>
             <button
               type="button"
               onClick={() => void signOut()}
-              className="rounded-pill border border-line px-3 py-1.5 text-left text-[12.5px] font-semibold text-neg"
+              className="touch-target rounded-pill border border-line px-3 text-left text-[13px] font-semibold text-neg"
             >
               Se déconnecter
             </button>
           </div>
           {msg && (
-            <p className="mt-2 text-[11.5px] text-ink2">{msg}</p>
+            <p className="mt-2 px-1 text-[12px] text-ink2">{msg}</p>
           )}
         </div>
       )}
