@@ -86,16 +86,16 @@ export function AssetDetail({
               currency={row.chart.currency}
             />
             <div className="mt-2 flex flex-wrap gap-4 text-xs text-ink-muted">
-              <LegendDot color="#3987e5" label="Price" />
-              <LegendDot color="#199e70" label="SMA 20" />
-              <LegendDot color="#d95926" label="SMA 50" />
+              <LegendDot color="#3987e5" label="Prix" />
+              <LegendDot color="#199e70" label="MM 20" />
+              <LegendDot color="#d95926" label="MM 50" />
             </div>
           </>
         ) : fetching && !row.unmanaged ? (
           <Skeleton className="mt-2 h-[280px] w-full rounded-xl" />
         ) : (
           <div className="flex h-[300px] items-center justify-center text-sm text-ink-muted">
-            {row.error ?? "No chart data"}
+            {row.error ?? "Pas de données de graphique"}
           </div>
         )}
       </div>
@@ -147,7 +147,7 @@ export function AssetDetail({
         </div>
 
         <div className="rounded-card border border-line bg-card p-5 shadow-soft">
-          <h2 className="mb-3 text-sm font-semibold text-ink">Indicators</h2>
+          <h2 className="mb-3 text-sm font-semibold text-ink">Indicateurs</h2>
           {row.unmanaged ? (
             <p className="text-sm text-ink-muted">Non géré</p>
           ) : row.advice ? (
@@ -157,7 +157,7 @@ export function AssetDetail({
                 value={row.advice.indicators.rsi14?.toFixed(1) ?? "—"}
               />
               <Indicator
-                label="Momentum 20d"
+                label="Momentum 20j"
                 value={
                   row.advice.indicators.momentum20 != null
                     ? formatPercent(row.advice.indicators.momentum20)
@@ -165,7 +165,7 @@ export function AssetDetail({
                 }
               />
               <Indicator
-                label="SMA 20"
+                label="MM 20"
                 value={
                   row.advice.indicators.sma20 != null
                     ? formatCurrency(row.advice.indicators.sma20, currency)
@@ -173,7 +173,7 @@ export function AssetDetail({
                 }
               />
               <Indicator
-                label="SMA 50"
+                label="MM 50"
                 value={
                   row.advice.indicators.sma50 != null
                     ? formatCurrency(row.advice.indicators.sma50, currency)
@@ -181,7 +181,7 @@ export function AssetDetail({
                 }
               />
               <Indicator
-                label="SMA 200"
+                label="MM 200"
                 value={
                   row.advice.indicators.sma200 != null
                     ? formatCurrency(row.advice.indicators.sma200, currency)
@@ -201,20 +201,20 @@ export function AssetDetail({
                 value={`${row.advice.score > 0 ? "+" : ""}${row.advice.score}`}
               />
               <Indicator
-                label="Confidence"
-                value={`${row.advice.confidence}%`}
+                label="Confiance"
+                value={`${row.advice.confidence} %`}
               />
             </dl>
           ) : (
             <p className="text-sm text-ink-muted">
-              Need ~30 daily bars to compute signals.
+              Il faut ≈ 30 séances pour calculer les signaux.
             </p>
           )}
         </div>
 
         <div className="rounded-card border border-line bg-card p-5 shadow-soft">
           <h2 className="mb-3 text-sm font-semibold text-ink">
-            Why this signal
+            Pourquoi ce signal
           </h2>
           {row.advice && row.advice.signals.length > 0 ? (
             <ul className="space-y-2.5">
@@ -253,7 +253,7 @@ export function AssetDetail({
             </ul>
           ) : (
             <p className="text-sm text-ink-muted">
-              Signals will appear once price history loads.
+              Les signaux apparaîtront une fois l’historique de prix chargé.
             </p>
           )}
         </div>

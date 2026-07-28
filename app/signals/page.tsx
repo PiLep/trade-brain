@@ -12,7 +12,7 @@ import { RecommendationBadge } from "@/components/RecommendationBadge";
 import { SizeHint } from "@/components/SizeHint";
 import { SignalsCardsSkeleton, SignalsSkeleton } from "@/components/Skeleton";
 
-type Filter = "Tous" | "Buy" | "Sell" | "Hold";
+type Filter = "Tous" | "Acheter" | "Vendre" | "Neutre";
 
 function isBuy(r: Recommendation) {
   return r === "BUY" || r === "STRONG_BUY";
@@ -54,9 +54,9 @@ export default function SignalsPage() {
       (r) => r.advice!.recommendation === "HOLD",
     );
 
-    if (filter === "Buy") return buys;
-    if (filter === "Sell") return sells;
-    if (filter === "Hold") return holds;
+    if (filter === "Acheter") return buys;
+    if (filter === "Vendre") return sells;
+    if (filter === "Neutre") return holds;
     // Tous: actionable first, then holds, skip unmanaged on this page list
     const rest = managed.filter(
       (r) =>
@@ -70,16 +70,16 @@ export default function SignalsPage() {
     const managed = rows.filter((r) => !r.unmanaged && r.advice);
     return {
       Tous: managed.length,
-      Buy:
+      Acheter:
         actionable.filter((r) => isBuyRec(r.advice?.recommendation)).length +
         mutedBuys.length,
-      Sell: actionable.filter(
+      Vendre: actionable.filter(
         (r) =>
           r.advice &&
           (r.advice.recommendation === "SELL" ||
             r.advice.recommendation === "STRONG_SELL"),
       ).length,
-      Hold: managed.filter((r) => r.advice!.recommendation === "HOLD").length,
+      Neutre: managed.filter((r) => r.advice!.recommendation === "HOLD").length,
     };
   }, [rows, actionable, mutedBuys]);
 
@@ -87,7 +87,7 @@ export default function SignalsPage() {
     return <SignalsSkeleton />;
   }
 
-  const filters: Filter[] = ["Tous", "Buy", "Sell", "Hold"];
+  const filters: Filter[] = ["Tous", "Acheter", "Vendre", "Neutre"];
 
   return (
     <div className="animate-rise space-y-5" aria-busy={fetching}>
@@ -96,8 +96,8 @@ export default function SignalsPage() {
           Signaux
         </h1>
         <p className="mt-1 max-w-[40rem] text-[13px] leading-snug text-ink2 sm:text-[13.5px]">
-          {reviewMonthLabel} · heuristiques pour orienter le rythme DCA
-          (renforcer / maintenir / alléger) — pas du trading
+          {reviewMonthLabel} · heuristiques prix + MM200 pour orienter le rythme
+          DCA (renforcer / maintenir / alléger) — pas du trading
         </p>
       </div>
 
@@ -130,9 +130,16 @@ export default function SignalsPage() {
       {chartsLoading ? (
         <SignalsCardsSkeleton />
       ) : list.length === 0 ? (
-        <p className="py-16 text-center text-sm text-ink3">
-          Aucun signal dans ce filtre.
-        </p>
+        <div className="rounded-card border border-dashed border-line px-4 py-14 text-center">
+          <p className="text-sm font-semibold text-ink">
+            Aucun signal dans ce filtre
+          </p>
+          <p className="mx-auto mt-1.5 max-w-[22rem] text-[13px] leading-relaxed text-ink3">
+            {rows.some((r) => !r.unmanaged && r.advice)
+              ? "Essaie un autre filtre, ou reviens après le prochain refresh des cours."
+              : "Ajoute des positions cotées — les signaux apparaissent dès que l’historique de prix est chargé."}
+          </p>
+        </div>
       ) : (
         <div className="flex flex-col gap-3">
           {list.map((r) => (
@@ -202,7 +209,7 @@ function SignalCard({
       <p className="text-[13px] leading-relaxed text-ink2">{reason}</p>
       {muted && (
         <div className="rounded-[10px] bg-chip px-3 py-2 text-[12.5px] text-ink2">
-          Achat en retrait — circuit breaker actif.
+          Achat en retrait — frein mensuel actif.
         </div>
       )}
       {(isBuy(rec) || isSell(rec)) && (

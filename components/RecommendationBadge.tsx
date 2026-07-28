@@ -1,3 +1,4 @@
+import { RECOMMENDATION_LABEL } from "@/lib/advice";
 import type { Recommendation } from "@/lib/types";
 
 const STYLES: Record<
@@ -5,23 +6,23 @@ const STYLES: Record<
   { label: string; className: string }
 > = {
   STRONG_BUY: {
-    label: "▲▲ Strong Buy",
+    label: `▲▲ ${RECOMMENDATION_LABEL.STRONG_BUY}`,
     className: "text-pos bg-[color-mix(in_srgb,var(--tb-pos)_12%,transparent)]",
   },
   BUY: {
-    label: "▲ Buy",
+    label: `▲ ${RECOMMENDATION_LABEL.BUY}`,
     className: "text-pos bg-[color-mix(in_srgb,var(--tb-pos)_12%,transparent)]",
   },
   HOLD: {
-    label: "— Hold",
+    label: `— ${RECOMMENDATION_LABEL.HOLD}`,
     className: "text-ink2 bg-chip",
   },
   SELL: {
-    label: "▼ Sell",
+    label: `▼ ${RECOMMENDATION_LABEL.SELL}`,
     className: "text-neg bg-[color-mix(in_srgb,var(--tb-neg)_12%,transparent)]",
   },
   STRONG_SELL: {
-    label: "▼▼ Strong Sell",
+    label: `▼▼ ${RECOMMENDATION_LABEL.STRONG_SELL}`,
     className: "text-neg bg-[color-mix(in_srgb,var(--tb-neg)_12%,transparent)]",
   },
 };

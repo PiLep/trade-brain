@@ -1,7 +1,7 @@
 "use client";
 
 import type { PositionSize } from "@/lib/risk";
-import { formatCurrency, formatPercent, formatQuantity } from "@/lib/format";
+import { formatCurrency, formatPercent, formatShares } from "@/lib/format";
 
 /** Readable “how much to add” card for Buy signals. */
 export function SizeHint({
@@ -43,7 +43,7 @@ export function SizeHint({
         </span>
         <span className="font-medium text-ink2">
           {" "}
-          ({formatQuantity(size.units)} parts)
+          ({formatShares(size.units)})
         </span>
       </p>
 

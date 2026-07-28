@@ -1,5 +1,6 @@
 "use client";
 
+import { formatDate } from "@/lib/format";
 import { useImportCsvUi } from "@/lib/importCsvUi";
 import type { ImportMeta } from "@/lib/month";
 import { monthLabel } from "@/lib/month";
@@ -23,7 +24,7 @@ export function MonthDataBanner({
   const label = monthLabel();
   const lastIso = importMeta?.csvLastDate || fallbackLastDate || null;
   const last = lastIso
-    ? new Date(lastIso + "T12:00:00").toLocaleDateString("fr-FR", {
+    ? formatDate(lastIso, {
         day: "numeric",
         month: "short",
         year: "numeric",

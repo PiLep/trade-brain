@@ -43,7 +43,7 @@ const PORTFOLIO: LearnSection = {
     {
       term: "Régime",
       plain:
-        "Part des lignes au-dessus de leur SMA200 (+ biais crypto). Risk-off → prudence sur les renforcements DCA.",
+        "Part des lignes au-dessus de leur MM200 (+ biais haussier / crypto). Risque fermé → prudence sur les renforcements DCA.",
     },
     {
       term: "Concentration",
@@ -51,7 +51,7 @@ const PORTFOLIO: LearnSection = {
         "Poids trop élevé → éviter de renforcer encore ce sparplan.",
     },
     {
-      term: "Circuit breaker",
+      term: "Frein mensuel",
       plain:
         "Coupe les « renforcer » si le mois est très négatif. Ne suspend jamais un sparplan déjà programmé chez TR.",
     },
@@ -61,18 +61,18 @@ const PORTFOLIO: LearnSection = {
 const SIGNALS: LearnSection = {
   title: "Signaux",
   intro:
-    "Heuristiques de prix pour décider le rythme DCA — pas un conseil d’achat/vente discrétionnaire.",
+    "Heuristiques de prix (surtout vs MM200) pour décider le rythme DCA — pas un conseil d’achat/vente discrétionnaire.",
   tips: [
     {
-      term: "Buy → renforcer",
+      term: "Acheter → renforcer",
       plain: "Candidat à un sparplan plus généreux (ou à en ouvrir un).",
     },
     {
-      term: "Hold → maintenir",
+      term: "Neutre → maintenir",
       plain: "Garder le montant actuel, ne rien changer.",
     },
     {
-      term: "Sell → alléger",
+      term: "Vendre → alléger",
       plain:
         "Réduire le montant ou mettre en pause — pas forcément vendre la ligne.",
     },
@@ -82,9 +82,9 @@ const SIGNALS: LearnSection = {
         "Agrégat −100…+100. Confiance = alignement des facteurs (pas une proba de gain).",
     },
     {
-      term: "SMA200",
+      term: "MM200",
       plain:
-        "Filtre de tendance longue. Au-dessus = biais renforcer ; en dessous = prudence.",
+        "Moyenne mobile 200 jours — filtre de tendance longue. Au-dessus = biais renforcer ; en dessous = prudence.",
     },
     {
       term: "Sizing",
@@ -114,6 +114,11 @@ const DCA: LearnSection = {
         "Flux mensuel ÷ jours du mois. Pouls quotidien sans nouveau CSV — utile si tu fais surtout du DCA.",
     },
     {
+      term: "Projection 5 / 10 ans",
+      plain:
+        "Capital investi au rythme actuel, sans rendement marché. Sert à visualiser l’effort, pas à promettre un gain.",
+    },
+    {
       term: "CSV",
       plain:
         "Sert à lister les sparplans et l’historique. Pas besoin de le rafraîchir chaque mois si tu ne trades presque jamais hors DCA.",
@@ -124,7 +129,7 @@ const DCA: LearnSection = {
 const JOURNAL: LearnSection = {
   title: "Journal",
   intro:
-    "Trace les Buy/Sell en SQLite (fichier local data/trade-brain.sqlite) pour mesurer a posteriori la qualité des signaux.",
+    "Trace les signaux d’achat / vente en SQLite (fichier local data/trade-brain.sqlite) pour mesurer a posteriori la qualité des orientations.",
   tips: [
     {
       term: "Persistance",
@@ -139,7 +144,7 @@ const JOURNAL: LearnSection = {
     {
       term: "J+5 / J+20",
       plain:
-        "Performance N jours après le snapshot (jours de marché). Buy OK si prix ↑ ; Sell OK si prix ↓. “…” tant que le délai n’est pas écoulé.",
+        "Performance N jours après le snapshot (jours de marché). Achat OK si prix ↑ ; vente OK si prix ↓. “…” tant que le délai n’est pas écoulé.",
     },
     {
       term: "Hit rate",
@@ -161,9 +166,9 @@ const ASSET: LearnSection = {
       plain: "Part de la ligne dans le portefeuille total.",
     },
     {
-      term: "SMA / RSI",
+      term: "MM / RSI",
       plain:
-        "SMA = moyenne mobile (N jours). RSI = Relative Strength Index (momentum 0–100).",
+        "MM = moyenne mobile (N jours). RSI = Relative Strength Index (momentum 0–100).",
     },
     {
       term: "Facteurs",

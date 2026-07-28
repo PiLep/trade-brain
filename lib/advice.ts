@@ -39,15 +39,15 @@ export function analyze(candles: Candle[]): Advice {
   if (sma200 !== null) {
     if (price > sma200) {
       push(
-        "Long-term trend",
+        "Tendance long terme",
         18,
-        `Price is above its 200-day average — the long-term trend is up.`,
+        "Le prix est au-dessus de sa moyenne 200 jours — la tendance de fond est haussière.",
       );
     } else {
       push(
-        "Long-term trend",
+        "Tendance long terme",
         -18,
-        `Price is below its 200-day average — the long-term trend is down.`,
+        "Le prix est en-dessous de sa moyenne 200 jours — la tendance de fond est baissière.",
       );
     }
   }
@@ -56,15 +56,15 @@ export function analyze(candles: Candle[]): Advice {
   if (sma50 !== null) {
     if (price > sma50) {
       push(
-        "Medium-term trend",
+        "Tendance moyen terme",
         12,
-        `Trading above the 50-day average — medium-term momentum is positive.`,
+        "Cours au-dessus de la moyenne 50 jours — momentum moyen terme positif.",
       );
     } else {
       push(
-        "Medium-term trend",
+        "Tendance moyen terme",
         -12,
-        `Trading below the 50-day average — medium-term momentum is negative.`,
+        "Cours en-dessous de la moyenne 50 jours — momentum moyen terme négatif.",
       );
     }
   }
@@ -73,15 +73,15 @@ export function analyze(candles: Candle[]): Advice {
   if (sma20 !== null && sma50 !== null) {
     if (sma20 > sma50) {
       push(
-        "MA crossover",
+        "Croisement MM",
         14,
-        `The 20-day average is above the 50-day (bullish "golden cross" alignment).`,
+        "La moyenne 20 jours est au-dessus de la 50 jours (alignement haussier « golden cross »).",
       );
     } else {
       push(
-        "MA crossover",
+        "Croisement MM",
         -14,
-        `The 20-day average is below the 50-day (bearish "death cross" alignment).`,
+        "La moyenne 20 jours est en-dessous de la 50 jours (alignement baissier « death cross »).",
       );
     }
   }
@@ -90,33 +90,33 @@ export function analyze(candles: Candle[]): Advice {
   if (rsi14 !== null) {
     if (rsi14 >= 70) {
       push(
-        "RSI (overbought)",
+        "RSI (surachat)",
         -16,
-        `RSI is ${rsi14.toFixed(0)} — overbought. The move may be stretched and due for a pullback.`,
+        `RSI à ${rsi14.toFixed(0)} — zone de surachat. Le mouvement peut être tendu.`,
       );
     } else if (rsi14 <= 30) {
       push(
-        "RSI (oversold)",
+        "RSI (survente)",
         16,
-        `RSI is ${rsi14.toFixed(0)} — oversold. Selling may be exhausted, a bounce is possible.`,
+        `RSI à ${rsi14.toFixed(0)} — zone de survente. Un rebond est possible.`,
       );
     } else if (rsi14 > 55) {
       push(
-        "RSI (firm)",
+        "RSI (ferme)",
         6,
-        `RSI is ${rsi14.toFixed(0)} — healthy upside momentum without being overbought.`,
+        `RSI à ${rsi14.toFixed(0)} — momentum haussier sain, sans excès.`,
       );
     } else if (rsi14 < 45) {
       push(
-        "RSI (soft)",
+        "RSI (mou)",
         -6,
-        `RSI is ${rsi14.toFixed(0)} — momentum is fading.`,
+        `RSI à ${rsi14.toFixed(0)} — le momentum s’essouffle.`,
       );
     } else {
       push(
-        "RSI (neutral)",
+        "RSI (neutre)",
         0,
-        `RSI is ${rsi14.toFixed(0)} — neutral, no momentum edge.`,
+        `RSI à ${rsi14.toFixed(0)} — neutre, pas d’avantage de momentum.`,
       );
     }
   }
@@ -127,13 +127,13 @@ export function analyze(candles: Candle[]): Advice {
       push(
         "MACD",
         10,
-        `MACD is above its signal line — momentum is turning up.`,
+        "Le MACD est au-dessus de sa ligne de signal — le momentum se retourne à la hausse.",
       );
     } else {
       push(
         "MACD",
         -10,
-        `MACD is below its signal line — momentum is turning down.`,
+        "Le MACD est en-dessous de sa ligne de signal — le momentum se retourne à la baisse.",
       );
     }
   }
@@ -144,19 +144,19 @@ export function analyze(candles: Candle[]): Advice {
       push(
         "Momentum",
         8,
-        `Up ${momentum20.toFixed(1)}% over the last 20 sessions — strong momentum.`,
+        `+${momentum20.toFixed(1)} % sur les 20 dernières séances — momentum fort.`,
       );
     } else if (momentum20 < -8) {
       push(
         "Momentum",
         -8,
-        `Down ${Math.abs(momentum20).toFixed(1)}% over the last 20 sessions — weak momentum.`,
+        `−${Math.abs(momentum20).toFixed(1)} % sur les 20 dernières séances — momentum faible.`,
       );
     } else {
       push(
         "Momentum",
         Math.round(momentum20),
-        `${momentum20 >= 0 ? "Up" : "Down"} ${Math.abs(momentum20).toFixed(1)}% over the last 20 sessions.`,
+        `${momentum20 >= 0 ? "+" : "−"}${Math.abs(momentum20).toFixed(1)} % sur les 20 dernières séances.`,
       );
     }
   }
@@ -166,15 +166,15 @@ export function analyze(candles: Candle[]): Advice {
     const pct = ((price - hl.low) / (hl.high - hl.low)) * 100;
     if (pct >= 95) {
       push(
-        "Range position",
+        "Position dans la fourchette",
         -6,
-        `Near the top of its ${candles.length}-day range (${pct.toFixed(0)}%) — limited headroom.`,
+        `Proche du haut de sa fourchette sur ${candles.length} jours (${pct.toFixed(0)} %) — marge limitée.`,
       );
     } else if (pct <= 10) {
       push(
-        "Range position",
+        "Position dans la fourchette",
         6,
-        `Near the bottom of its ${candles.length}-day range (${pct.toFixed(0)}%) — potential value.`,
+        `Proche du bas de sa fourchette sur ${candles.length} jours (${pct.toFixed(0)} %) — potentiel de valeur.`,
       );
     }
   }
@@ -223,9 +223,9 @@ function toRecommendation(score: number): Recommendation {
 }
 
 export const RECOMMENDATION_LABEL: Record<Recommendation, string> = {
-  STRONG_BUY: "Strong Buy",
-  BUY: "Buy",
-  HOLD: "Hold",
-  SELL: "Sell",
-  STRONG_SELL: "Strong Sell",
+  STRONG_BUY: "Fort achat",
+  BUY: "Acheter",
+  HOLD: "Neutre",
+  SELL: "Vendre",
+  STRONG_SELL: "Fort vendre",
 };

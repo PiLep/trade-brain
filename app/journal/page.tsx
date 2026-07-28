@@ -2,24 +2,13 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
-import { formatCurrency, formatPercent } from "@/lib/format";
+import { formatCurrency, formatDate, formatPercent } from "@/lib/format";
 import { assetTitle } from "@/lib/labels";
 import { journalStats } from "@/lib/signalJournal";
 import { useMarketPortfolio } from "@/lib/useMarketPortfolio";
 import { RecommendationBadge } from "@/components/RecommendationBadge";
 import { JournalSkeleton } from "@/components/Skeleton";
 import { StatTile } from "@/components/StatTile";
-
-function formatFrDate(iso: string) {
-  try {
-    return new Date(iso + "T12:00:00").toLocaleDateString("fr-FR", {
-      day: "numeric",
-      month: "short",
-    });
-  } catch {
-    return iso;
-  }
-}
 
 export default function JournalPage() {
   const { loaded, fetching, refreshedAt, journal, displayCurrency } =
@@ -65,31 +54,36 @@ export default function JournalPage() {
           }
         />
         <StatTile
-          label="Buy moy. J+5"
+          label="Achat moy. J+5"
           value={
             stats.avgReturn5Buy != null
               ? formatPercent(stats.avgReturn5Buy)
               : "—"
           }
-          hint="après un Buy"
+          hint="après un signal d’achat"
         />
         <StatTile
-          label="Sell moy. J+5"
+          label="Vente moy. J+5"
           value={
             stats.avgReturn5Sell != null
               ? formatPercent(stats.avgReturn5Sell)
               : "—"
           }
-          hint="après un Sell"
+          hint="après un signal de vente"
         />
       </section>
 
       <section className="overflow-hidden rounded-card border border-line bg-card shadow-soft">
         {journal.length === 0 ? (
-          <p className="px-[22px] py-14 text-center text-sm text-ink3">
-            Aucun signal journalisé pour l’instant. Les Buy/Sell apparaîtront
-            automatiquement au refresh.
-          </p>
+          <div className="px-4 py-14 text-center sm:px-[22px]">
+            <p className="text-sm font-semibold text-ink">
+              Journal encore vide
+            </p>
+            <p className="mx-auto mt-1.5 max-w-[22rem] text-[13px] leading-relaxed text-ink3">
+              Les signaux d’achat / vente se journalisent automatiquement à
+              chaque refresh des cours.
+            </p>
+          </div>
         ) : (
           journal.map((e) => {
             const metaParts = [
@@ -108,7 +102,7 @@ export default function JournalPage() {
               >
                 <div className="flex flex-wrap items-center gap-2 sm:contents">
                   <span className="font-mono text-[11.5px] text-ink3">
-                    {formatFrDate(e.date)}
+                    {formatDate(e.date, { day: "numeric", month: "short" })}
                   </span>
                   <RecommendationBadge
                     recommendation={e.recommendation}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { formatQuantity } from "@/lib/format";
+import { formatCurrency, formatQuantity } from "@/lib/format";
 import type { DcaPlan, Holding } from "@/lib/types";
 import {
   guessYahooSymbol,
@@ -343,18 +343,12 @@ export function ImportCsvDialog({
             <p className="text-xs text-ink-muted">
               {preview.length} positions · {meta.dcaCount} DCA
               {meta.dcaCount
-                ? ` (≈ ${meta.dcaMonthly.toLocaleString("fr-FR", {
-                    style: "currency",
-                    currency: "EUR",
-                    maximumFractionDigits: 0,
+                ? ` (≈ ${formatCurrency(meta.dcaMonthly, "EUR", {
+                    compact: true,
                   })}/mois actifs)`
                 : ""}{" "}
               · cash ≈{" "}
-              {meta.cashEur.toLocaleString("fr-FR", {
-                style: "currency",
-                currency: "EUR",
-                maximumFractionDigits: 0,
-              })}
+              {formatCurrency(meta.cashEur, "EUR", { compact: true })}
               {meta.csvFirstDate && meta.csvLastDate
                 ? ` · CSV ${meta.csvFirstDate} → ${meta.csvLastDate}`
                 : ""}
@@ -424,7 +418,7 @@ export function ImportCsvDialog({
                         {formatQuantity(r.position.quantity)} u
                       </div>
                       <div className="text-ink-muted">
-                        @ {r.position.avgCost.toFixed(2)} €
+                        @ {formatCurrency(r.position.avgCost, "EUR")}
                       </div>
                     </div>
                   </li>
