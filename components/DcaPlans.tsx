@@ -58,15 +58,29 @@ function StatusPill({ active }: { active: boolean }) {
 export function DcaPlans({
   rows,
   emptyHint,
+  onImport,
 }: {
   rows: DcaPlanRow[];
   emptyHint?: string;
+  onImport?: () => void;
 }) {
   if (!rows.length) {
     return (
-      <div className="rounded-card border border-dashed border-line px-4 py-10 text-center text-sm text-ink2">
-        {emptyHint ??
-          "Aucun sparplan détecté. Importe ton CSV Trade Republic pour les orienter."}
+      <div className="rounded-card border border-dashed border-line px-4 py-10 text-center">
+        <p className="text-sm font-semibold text-ink">Aucun sparplan détecté</p>
+        <p className="mx-auto mt-1.5 max-w-[22rem] text-[13px] leading-relaxed text-ink2">
+          {emptyHint ??
+            "Importe ton CSV Trade Republic pour détecter les sparplans et les orienter."}
+        </p>
+        {onImport && (
+          <button
+            type="button"
+            onClick={onImport}
+            className="mt-3 text-[13px] font-semibold text-accent hover:underline"
+          >
+            Importer CSV →
+          </button>
+        )}
       </div>
     );
   }

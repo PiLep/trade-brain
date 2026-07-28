@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import {
   formatCurrency,
+  formatDateTime,
   formatPercent,
   formatQuantity,
   formatSignedCurrency,
@@ -13,6 +14,8 @@ import type { Recommendation } from "@/lib/types";
 import { useMarketPortfolio } from "@/lib/useMarketPortfolio";
 import { AllocationChart } from "@/components/AllocationChart";
 import { envelopeBadge } from "@/components/AssetLabel";
+import { ImportFreshnessChip } from "@/components/ImportFreshnessChip";
+import { PortfolioTrend } from "@/components/PortfolioTrend";
 import { RecommendationBadge } from "@/components/RecommendationBadge";
 import {
   AllocationSkeleton,
@@ -25,6 +28,7 @@ import { RiskBanner } from "@/components/RiskBanner";
 import { SizeHint } from "@/components/SizeHint";
 import { Sparkline } from "@/components/Sparkline";
 import { projectDcaMonth } from "@/lib/dcaProjection";
+import { useImportCsvUi } from "@/lib/importCsvUi";
 import { isBuyRec } from "@/lib/risk";
 
 type SortKey = "asset" | "price" | "month" | "value" | "pnl" | "signal";
@@ -42,26 +46,36 @@ function PnlChip({
   amount,
   pct,
   currency,
-  suffix,
+  variant,
 }: {
   amount: number;
   pct: number;
   currency: string;
-  suffix: string;
+  variant: "month" | "since";
 }) {
   const up = amount > 0;
   const down = amount < 0;
+  const isMonth = variant === "month";
   const tone = up
-    ? "text-pos bg-[color-mix(in_srgb,var(--tb-pos)_10%,transparent)]"
+    ? isMonth
+      ? "text-pos bg-[color-mix(in_srgb,var(--tb-pos)_14%,transparent)] ring-1 ring-[color-mix(in_srgb,var(--tb-pos)_28%,transparent)]"
+      : "text-pos bg-transparent ring-1 ring-[color-mix(in_srgb,var(--tb-pos)_22%,transparent)]"
     : down
-      ? "text-neg bg-[color-mix(in_srgb,var(--tb-neg)_10%,transparent)]"
-      : "text-ink2 bg-chip";
+      ? isMonth
+        ? "text-neg bg-[color-mix(in_srgb,var(--tb-neg)_14%,transparent)] ring-1 ring-[color-mix(in_srgb,var(--tb-neg)_28%,transparent)]"
+        : "text-neg bg-transparent ring-1 ring-[color-mix(in_srgb,var(--tb-neg)_22%,transparent)]"
+      : "text-ink2 bg-chip ring-1 ring-line";
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-pill px-3 py-1.5 text-[13px] font-semibold ${tone}`}
+      className={`inline-flex items-center gap-1.5 rounded-pill px-3 py-1.5 text-[13px] ${
+        isMonth ? "font-semibold" : "font-medium"
+      } ${tone}`}
     >
+      <span className="text-[10px] font-bold uppercase tracking-[0.06em] opacity-70">
+        {isMonth ? "Mois" : "Achat"}
+      </span>
       {up ? "▲" : down ? "▼" : "◆"}{" "}
-      {formatSignedCurrency(amount, currency)} · {formatPercent(pct)} {suffix}
+      {formatSignedCurrency(amount, currency)} · {formatPercent(pct)}
     </span>
   );
 }
@@ -91,7 +105,9 @@ export default function PortfolioPage() {
     concentration,
     regime,
     sizeFor,
+    importMeta,
   } = useMarketPortfolio();
+  const { openImportCsv } = useImportCsvUi();
 
   const [sortKey, setSortKey] = useState<SortKey>("value");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
@@ -165,31 +181,35 @@ export default function PortfolioPage() {
   const majLabel = refreshedAt
     ? fetching
       ? "rafraîchissement…"
-      : `maj ${refreshedAt.toLocaleString("fr-FR", {
-          day: "numeric",
-          month: "short",
-          hour: "2-digit",
-          minute: "2-digit",
-        })}`
+      : `maj ${formatDateTime(refreshedAt)}`
     : chartsLoading
       ? "chargement des cours…"
-      : "—";
+      : null;
 
   return (
     <div className="animate-rise space-y-7" aria-busy={fetching}>
       <div className="grid items-stretch gap-6 lg:grid-cols-[1fr_360px]">
         <div className="flex flex-col justify-center gap-4 py-1.5">
-          <div className="flex flex-wrap items-center gap-2 font-mono text-[10px] uppercase tracking-[0.09em] text-ink3 sm:text-[11px]">
+          <div className="flex flex-wrap items-center gap-2 text-[12.5px] text-ink3">
             <span className="min-w-0 leading-relaxed">
-              Orientation DCA · {reviewMonthLabel} · {holdings.length}{" "}
-              position{holdings.length === 1 ? "" : "s"}
-              {majLabel !== "—" ? ` · ${majLabel}` : ""}
+              <span className="font-medium text-ink2">Orientation DCA</span>
+              <span className="mx-1.5 text-ink3/70">·</span>
+              {reviewMonthLabel}
+              <span className="mx-1.5 text-ink3/70">·</span>
+              {holdings.length} position{holdings.length === 1 ? "" : "s"}
+              {majLabel ? (
+                <>
+                  <span className="mx-1.5 text-ink3/70">·</span>
+                  {majLabel}
+                </>
+              ) : null}
             </span>
+            <ImportFreshnessChip importedAt={importMeta?.importedAt} />
             <button
               type="button"
               onClick={refresh}
               disabled={fetching}
-              className="touch-target inline-flex items-center rounded-pill border border-line bg-card px-3 text-[12px] font-semibold normal-case tracking-normal text-ink2 hover:border-ink3 hover:text-ink disabled:opacity-50"
+              className="touch-target inline-flex items-center rounded-pill border border-line bg-card px-3 text-[12px] font-semibold text-ink2 hover:border-ink3 hover:text-ink disabled:opacity-50"
             >
               {fetching ? "…" : "Actualiser"}
             </button>
@@ -201,12 +221,11 @@ export default function PortfolioPage() {
               {formatCurrency(totalValue, displayCurrency)}
             </div>
           )}
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {chartsLoading ? (
               <>
                 <Skeleton className="h-8 w-48 rounded-pill" />
                 <Skeleton className="h-8 w-44 rounded-pill" />
-                <Skeleton className="h-8 w-40 rounded-pill" />
               </>
             ) : (
               <>
@@ -214,26 +233,36 @@ export default function PortfolioPage() {
                   amount={monthPnl}
                   pct={monthPnlPct}
                   currency={displayCurrency}
-                  suffix="ce mois"
+                  variant="month"
                 />
                 <PnlChip
                   amount={totalPnl}
                   pct={totalPnlPct}
                   currency={displayCurrency}
-                  suffix="depuis l'achat"
+                  variant="since"
                 />
-                  <Link
+              </>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {chartsLoading ? (
+              <Skeleton className="h-8 w-56 rounded-pill" />
+            ) : (
+              <>
+                {dcaProj.monthlyEur > 0 && (
+                  <span
+                    className="inline-flex items-center rounded-pill bg-chip px-3 py-1.5 text-[13px] font-medium text-ink2"
+                    title={`Projection linéaire · J${dcaProj.day}/${dcaProj.daysInMonth} · ${formatCurrency(dcaProj.mtdProjectedEur, "EUR")} projetés ce mois`}
+                  >
+                    DCA ≈ {formatCurrency(dcaProj.dailyEur, "EUR")}/jour
+                  </span>
+                )}
+                <Link
                   href="/dca"
-                  className="touch-target inline-flex items-center gap-1.5 rounded-pill bg-chip px-3 text-[13px] font-semibold text-ink2 hover:text-ink"
-                  title={
-                    dcaProj.monthlyEur
-                      ? `Projection linéaire · J${dcaProj.day}/${dcaProj.daysInMonth} · ${formatCurrency(dcaProj.mtdProjectedEur, "EUR")} projetés ce mois`
-                      : undefined
-                  }
+                  className="touch-target inline-flex items-center gap-1 rounded-pill bg-accent px-3.5 text-[13px] font-semibold text-onacc hover:opacity-90"
                 >
-                  {dcaProj.monthlyEur
-                    ? `DCA ≈ ${formatCurrency(dcaProj.dailyEur, "EUR")} / jour · orienter →`
-                    : "Orienter mes DCA →"}
+                  Orienter
+                  <span aria-hidden>→</span>
                 </Link>
               </>
             )}
@@ -265,6 +294,12 @@ export default function PortfolioPage() {
         )}
       </div>
 
+      <PortfolioTrend
+        rows={rows}
+        currency={displayCurrency}
+        loading={chartsLoading}
+      />
+
       <div className="grid gap-5 lg:grid-cols-[5fr_4fr]">
         <section className="rounded-card border border-line bg-card p-4 shadow-soft sm:p-5 lg:p-[22px]">
           <div className="mb-4 flex items-baseline justify-between">
@@ -277,6 +312,13 @@ export default function PortfolioPage() {
           </div>
           {chartsLoading ? (
             <AllocationSkeleton />
+          ) : allocSlices.length === 0 ? (
+            <EmptyHint
+              title="Rien à répartir"
+              body="Importe ton CSV Trade Republic pour voir la répartition."
+              actionLabel="Importer CSV"
+              onAction={openImportCsv}
+            />
           ) : (
             <AllocationChart
               slices={allocSlices}
@@ -300,11 +342,20 @@ export default function PortfolioPage() {
           {chartsLoading ? (
             <SignalsListSkeleton count={3} />
           ) : actionable.length === 0 ? (
-            <p className="py-10 text-center text-sm text-ink3">
-              {circuitBreaker.active
-                ? "Frein mensuel — pas de renforcement DCA pour l’instant."
-                : "Rien de fort — maintenir les sparplans en place."}
-            </p>
+            <EmptyHint
+              title={
+                circuitBreaker.active
+                  ? "Frein mensuel actif"
+                  : "Rien de fort à ajuster"
+              }
+              body={
+                circuitBreaker.active
+                  ? "Pas de renforcement DCA pour l’instant — garder les sparplans en place."
+                  : "Maintenir les sparplans. Les signaux se basent surtout sur le prix vs MM200."
+              }
+              actionLabel="Voir l’orientation"
+              actionHref="/dca"
+            />
           ) : (
             <ul>
               {actionable.slice(0, 4).map((r) => (
@@ -367,9 +418,13 @@ export default function PortfolioPage() {
         </div>
 
         {holdings.length === 0 ? (
-          <div className="px-4 py-14 text-center text-ink2 sm:px-[22px] lg:py-16">
-            Aucune position — Importer CSV ou + Ajouter un actif.
-          </div>
+          <EmptyHint
+            className="px-4 py-14 sm:px-[22px] lg:py-16"
+            title="Aucune position"
+            body="Importe un export CSV Trade Republic, ou ajoute un actif manuellement."
+            actionLabel="Importer CSV"
+            onAction={openImportCsv}
+          />
         ) : (
           <>
             {/* Mobile cards */}
@@ -642,8 +697,51 @@ export default function PortfolioPage() {
       </section>
 
       <p className="pb-2 text-center text-[11px] text-ink3">
-        Signaux techniques heuristiques — pas un conseil financier.
+        Signaux heuristiques (prix + MM200 en priorité) — pas un conseil
+        financier.
       </p>
+    </div>
+  );
+}
+
+function EmptyHint({
+  title,
+  body,
+  actionLabel,
+  actionHref,
+  onAction,
+  className = "py-10",
+}: {
+  title: string;
+  body: string;
+  actionLabel?: string;
+  actionHref?: string;
+  onAction?: () => void;
+  className?: string;
+}) {
+  return (
+    <div className={`px-2 text-center ${className}`}>
+      <p className="text-sm font-semibold text-ink">{title}</p>
+      <p className="mx-auto mt-1.5 max-w-[22rem] text-[13px] leading-relaxed text-ink3">
+        {body}
+      </p>
+      {actionLabel && actionHref && (
+        <Link
+          href={actionHref}
+          className="mt-3 inline-flex text-[13px] font-semibold text-accent hover:underline"
+        >
+          {actionLabel} →
+        </Link>
+      )}
+      {actionLabel && onAction && !actionHref && (
+        <button
+          type="button"
+          onClick={onAction}
+          className="mt-3 inline-flex text-[13px] font-semibold text-accent hover:underline"
+        >
+          {actionLabel} →
+        </button>
+      )}
     </div>
   );
 }

@@ -10,7 +10,7 @@ import {
   YAxis,
 } from "recharts";
 import type { Candle } from "@/lib/types";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatDate } from "@/lib/format";
 
 // CVD-safe leading slots from the reference palette: blue / orange / aqua.
 const PRICE = "#3987e5";
@@ -48,9 +48,9 @@ function CrosshairTooltip({
   if (!active || !payload?.length) return null;
   const row: Row = payload[0].payload;
   const rows: { label: string; value: number | null; color: string }[] = [
-    { label: "Price", value: row.close, color: PRICE },
-    { label: "SMA 20", value: row.sma20, color: SMA20 },
-    { label: "SMA 50", value: row.sma50, color: SMA50 },
+    { label: "Prix", value: row.close, color: PRICE },
+    { label: "MM 20", value: row.sma20, color: SMA20 },
+    { label: "MM 50", value: row.sma50, color: SMA50 },
   ];
   return (
     <div className="rounded-lg border border-hairline bg-surface-2/95 px-3 py-2 text-xs shadow-xl backdrop-blur">
@@ -88,9 +88,9 @@ export function PriceChart({
 
   const data: Row[] = candles.map((c, i) => ({
     t: c.t,
-    label: new Date(c.t).toLocaleDateString("en-US", {
-      month: "short",
+    label: formatDate(c.t, {
       day: "numeric",
+      month: "short",
       year: "numeric",
     }),
     close: c.close,
@@ -145,7 +145,7 @@ export function PriceChart({
             dot={false}
             activeDot={{ r: 3.5, strokeWidth: 0 }}
             isAnimationActive={false}
-            name="Price"
+            name="Prix"
           />
           <Line
             type="monotone"
@@ -155,7 +155,7 @@ export function PriceChart({
             dot={false}
             isAnimationActive={false}
             connectNulls
-            name="SMA 20"
+            name="MM 20"
           />
           <Line
             type="monotone"
@@ -165,7 +165,7 @@ export function PriceChart({
             dot={false}
             isAnimationActive={false}
             connectNulls
-            name="SMA 50"
+            name="MM 50"
           />
         </ComposedChart>
       </ResponsiveContainer>

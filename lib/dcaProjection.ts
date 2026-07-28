@@ -47,3 +47,16 @@ export function projectDcaMonth(
     activeCount: active.length,
   };
 }
+
+/**
+ * Capital investi projeté (linéaire) — pas de rendement marché.
+ * Utile pour visualiser l’effort DCA à 5 / 10 ans.
+ */
+export function projectDcaInvested(
+  monthlyEur: number,
+  years: number,
+  alreadyInvestedEur = 0,
+): number {
+  if (!(monthlyEur > 0) || !(years > 0)) return alreadyInvestedEur;
+  return alreadyInvestedEur + monthlyEur * 12 * years;
+}

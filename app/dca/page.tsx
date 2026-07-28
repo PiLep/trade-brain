@@ -2,8 +2,9 @@
 
 import { useMemo } from "react";
 import { adviceForPlan, orientDca } from "@/lib/dcaOrientation";
-import { projectDcaMonth } from "@/lib/dcaProjection";
+import { projectDcaInvested, projectDcaMonth } from "@/lib/dcaProjection";
 import { formatCurrency } from "@/lib/format";
+import { useImportCsvUi } from "@/lib/importCsvUi";
 import { useMarketPortfolio } from "@/lib/useMarketPortfolio";
 import { DcaPlans } from "@/components/DcaPlans";
 import { MonthDataBanner } from "@/components/MonthDataBanner";
@@ -23,6 +24,7 @@ export default function DcaPage() {
     csvCoverageLastDate,
     reviewMonthLabel,
   } = useMarketPortfolio();
+  const { openImportCsv } = useImportCsvUi();
 
   const chartsLoading = fetching && !refreshedAt;
 
@@ -58,6 +60,8 @@ export default function DcaPage() {
 
   const proj = projectDcaMonth(dcaPlans);
   const totalInvested = dcaPlans.reduce((a, d) => a + d.totalInvestedEur, 0);
+  const in5y = projectDcaInvested(proj.monthlyEur, 5, totalInvested);
+  const in10y = projectDcaInvested(proj.monthlyEur, 10, totalInvested);
 
   return (
     <div className="animate-rise space-y-6" aria-busy={fetching}>
@@ -110,16 +114,60 @@ export default function DcaPage() {
         />
       </section>
 
-      <DcaPlans rows={oriented} />
+      {proj.monthlyEur > 0 && (
+        <section className="rounded-card border border-line bg-card p-4 shadow-soft sm:p-5">
+          <div className="text-[15px] font-bold tracking-tight text-ink">
+            Projection long terme
+          </div>
+          <p className="mt-0.5 text-[12.5px] text-ink3">
+            Capital investi au rythme actuel — sans rendement marché
+          </p>
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            <HorizonCard
+              label="Dans 5 ans"
+              value={formatCurrency(in5y, "EUR", { compact: true })}
+              hint={`${formatCurrency(proj.monthlyEur * 12 * 5, "EUR")} d’apports`}
+            />
+            <HorizonCard
+              label="Dans 10 ans"
+              value={formatCurrency(in10y, "EUR", { compact: true })}
+              hint={`${formatCurrency(proj.monthlyEur * 12 * 10, "EUR")} d’apports`}
+            />
+          </div>
+        </section>
+      )}
+
+      <DcaPlans rows={oriented} onImport={openImportCsv} />
 
       <div className="flex max-w-[720px] items-start gap-2.5 rounded-xl border border-dashed border-line px-4 py-3 text-[12.5px] leading-relaxed text-ink2">
         <InfoIcon />
         <span>
-          Orientation = heuristique de prix pour ajuster le <em>rythme</em> DCA
-          (montant / pause), pas un ordre de vente. Le frein mensuel bloque les
-          « renforcer », jamais l’exécution des sparplans déjà en place.
+          Orientation = heuristique de prix (surtout vs MM200) pour ajuster le{" "}
+          <em>rythme</em> DCA (montant / pause), pas un ordre de vente. Le frein
+          mensuel bloque les « renforcer », jamais l’exécution des sparplans déjà
+          en place.
         </span>
       </div>
+    </div>
+  );
+}
+
+function HorizonCard({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: string;
+  hint: string;
+}) {
+  return (
+    <div className="rounded-xl bg-chip px-3.5 py-3">
+      <div className="text-[11.5px] font-medium text-ink3">{label}</div>
+      <div className="mt-1 text-[22px] font-semibold tabular tracking-tight text-ink">
+        {value}
+      </div>
+      <div className="mt-0.5 text-[11.5px] text-ink3">{hint}</div>
     </div>
   );
 }

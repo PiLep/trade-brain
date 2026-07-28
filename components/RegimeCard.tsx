@@ -20,10 +20,17 @@ export function RegimeCard({ regime }: { regime: PortfolioRegime }) {
         ? "bg-neg"
         : "bg-accent";
 
+  const tilt =
+    regime.breakdown.cryptoTilt === 0
+      ? "0"
+      : regime.breakdown.cryptoTilt > 0
+        ? `+${regime.breakdown.cryptoTilt}`
+        : String(regime.breakdown.cryptoTilt);
+
   return (
     <div className="flex h-full flex-col gap-3 rounded-card border border-line bg-card p-4 shadow-soft sm:p-5 lg:p-[22px]">
       <div className="flex items-center justify-between gap-2">
-        <span className="font-mono text-[10.5px] font-medium uppercase tracking-[0.09em] text-ink3">
+        <span className="text-[12px] font-medium text-ink3">
           Régime portefeuille
         </span>
         <span
@@ -47,20 +54,47 @@ export function RegimeCard({ regime }: { regime: PortfolioRegime }) {
       <p className="m-0 text-[13px] leading-relaxed text-ink2">
         {regime.guidance}
       </p>
+
       <div className="flex flex-col gap-2 border-t border-line pt-3">
-        <div className="flex justify-between text-[13px]">
-          <span className="text-ink2">Au-dessus de la SMA200</span>
-          <span className="font-semibold text-ink">
-            {formatPercent(regime.aboveSma200Pct, false)}
-          </span>
-        </div>
-        <div className="flex justify-between text-[13px]">
-          <span className="text-ink2">Biais crypto</span>
-          <span className="font-semibold text-ink">
-            {formatPercent(regime.cryptoPct, false)}
-          </span>
-        </div>
+        <p className="m-0 text-[11px] font-medium text-ink3">
+          Décomposition du score
+        </p>
+        <BreakdownRow
+          label="Prix &gt; MM200"
+          detail={formatPercent(regime.aboveSma200Pct, false)}
+          points={`+${regime.breakdown.sma200}`}
+        />
+        <BreakdownRow
+          label="Biais haussier"
+          detail={formatPercent(regime.bullishPct, false)}
+          points={`+${regime.breakdown.bullish}`}
+        />
+        <BreakdownRow
+          label="Biais crypto"
+          detail={formatPercent(regime.cryptoPct, false)}
+          points={tilt}
+        />
       </div>
+    </div>
+  );
+}
+
+function BreakdownRow({
+  label,
+  detail,
+  points,
+}: {
+  label: string;
+  detail: string;
+  points: string;
+}) {
+  return (
+    <div className="flex items-baseline justify-between gap-2 text-[13px]">
+      <span className="min-w-0 text-ink2">
+        {label}
+        <span className="ml-1.5 tabular text-ink3">{detail}</span>
+      </span>
+      <span className="shrink-0 font-semibold tabular text-ink">{points}</span>
     </div>
   );
 }

@@ -7,6 +7,15 @@ import type { Advice } from "@/lib/types";
 
 export type RegimeZone = "risk_on" | "neutral" | "risk_off";
 
+export type RegimeBreakdown = {
+  /** Contribution of SMA200 participation (0–70). */
+  sma200: number;
+  /** Contribution of bullish advice share (0–20). */
+  bullish: number;
+  /** Crypto tilt adjustment (can be negative). */
+  cryptoTilt: number;
+};
+
 export type PortfolioRegime = {
   zone: RegimeZone;
   /** 0–100, higher = more risk-on. */
@@ -20,6 +29,8 @@ export type PortfolioRegime = {
   /** % of managed positions with Buy/Strong Buy advice. */
   bullishPct: number;
   sampleSize: number;
+  /** Visible score decomposition for the UI. */
+  breakdown: RegimeBreakdown;
 };
 
 type RowLike = {
@@ -57,14 +68,20 @@ export function evaluatePortfolioRegime(
   const cryptoPct = totalValue > 0 ? (cryptoValue / totalValue) * 100 : 0;
 
   // Score: SMA200 participation dominates, bullish share and crypto tilt adjust.
-  let score = aboveSma200Pct * 0.7 + bullishPct * 0.2 + 50 * 0.1;
+  const sma200Part = aboveSma200Pct * 0.7;
+  const bullishPart = bullishPct * 0.2;
+  const basePart = 50 * 0.1;
+  let cryptoTilt = 0;
   // Heavy crypto in a weak trend pulls score down; in a strong trend it's fine.
   if (cryptoPct >= 8 && aboveSma200Pct < 45) {
-    score -= Math.min(12, cryptoPct);
+    cryptoTilt = -Math.min(12, cryptoPct);
   } else if (cryptoPct >= 8 && aboveSma200Pct >= 60) {
-    score += Math.min(5, cryptoPct / 4);
+    cryptoTilt = Math.min(5, cryptoPct / 4);
   }
-  score = Math.max(0, Math.min(100, score));
+  const score = Math.max(
+    0,
+    Math.min(100, sma200Part + bullishPart + basePart + cryptoTilt),
+  );
 
   let zone: RegimeZone = "neutral";
   if (score >= 62) zone = "risk_on";
@@ -72,17 +89,17 @@ export function evaluatePortfolioRegime(
 
   const label =
     zone === "risk_on"
-      ? "Risk-on"
+      ? "Risque ouvert"
       : zone === "risk_off"
-        ? "Risk-off"
+        ? "Risque fermé"
         : "Neutre";
 
   const guidance =
     zone === "risk_on"
-      ? "Tendance saine — les achats techniques sont autorisés dans les limites de sizing."
+      ? "Tendance saine (prix > MM200 en majorité) — renforcer les DCA dans les limites de sizing."
       : zone === "risk_off"
-        ? "Portefeuille sous pression — privilégier hold / trim, éviter d’augmenter l’exposition."
-        : "Régime mixte — rester sélectif, respecter concentration et circuit breaker.";
+        ? "Portefeuille sous pression — privilégier maintenir / alléger, éviter d’augmenter l’exposition."
+        : "Régime mixte — rester sélectif, respecter concentration et frein mensuel.";
 
   return {
     zone,
@@ -93,5 +110,10 @@ export function evaluatePortfolioRegime(
     cryptoPct,
     bullishPct,
     sampleSize: managed.length,
+    breakdown: {
+      sma200: Math.round(sma200Part),
+      bullish: Math.round(bullishPart),
+      cryptoTilt: Math.round(cryptoTilt),
+    },
   };
 }
