@@ -289,7 +289,7 @@ export function ImportCsvDialog({
             type="button"
             onClick={onClose}
             className="touch-target grid shrink-0 place-items-center rounded-pill text-[18px] text-ink-muted hover:bg-surface-2 hover:text-ink"
-            aria-label="Close"
+            aria-label="Fermer"
           >
             ✕
           </button>
