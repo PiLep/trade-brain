@@ -103,12 +103,12 @@ export function AddAssetDialog({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold text-ink">Add a position</h2>
+          <h2 className="text-lg font-semibold text-ink">Ajouter une position</h2>
           <button
             type="button"
             onClick={onClose}
             className="touch-target grid place-items-center rounded-pill text-[18px] text-ink-muted hover:bg-surface-2 hover:text-ink"
-            aria-label="Close"
+            aria-label="Fermer"
           >
             ✕
           </button>
@@ -116,7 +116,7 @@ export function AddAssetDialog({
 
         {/* Symbol search */}
         <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-ink-muted">
-          Asset
+          Actif
         </label>
         {selected ? (
           <div className="flex items-center justify-between rounded-lg border border-hairline bg-surface-2 px-3 py-2">
@@ -131,7 +131,7 @@ export function AddAssetDialog({
               }}
               className="text-xs text-s-1 hover:underline"
             >
-              Change
+              Changer
             </button>
           </div>
         ) : (
@@ -140,14 +140,14 @@ export function AddAssetDialog({
               autoFocus
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search e.g. Apple, AAPL, Bitcoin, BTC-USD…"
+              placeholder="Rechercher ex. Apple, AAPL, Bitcoin…"
               className="min-h-12 w-full rounded-lg border border-hairline bg-surface-2 px-3 py-3 text-base text-ink outline-none placeholder:text-ink-muted focus:border-s-1 sm:min-h-0 sm:py-2 sm:text-sm"
             />
             {(results.length > 0 || searching) && (
               <ul className="absolute z-10 mt-1 max-h-64 w-full overflow-auto rounded-lg border border-hairline bg-surface-2 py-1 shadow-2xl">
                 {searching && results.length === 0 && (
                   <li className="px-3 py-2 text-sm text-ink-muted">
-                    Searching…
+                    Recherche…
                   </li>
                 )}
                 {results.map((r) => (
@@ -181,7 +181,7 @@ export function AddAssetDialog({
         <div className="mt-4 grid grid-cols-2 gap-3">
           <div>
             <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-ink-muted">
-              Quantity
+              Quantité
             </label>
             <input
               type="number"
@@ -196,7 +196,7 @@ export function AddAssetDialog({
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-ink-muted">
-              Avg. buy price
+              PRU
             </label>
             <input
               type="number"
@@ -217,7 +217,7 @@ export function AddAssetDialog({
           onClick={submit}
           className="mt-5 min-h-12 w-full rounded-pill bg-accent py-3 text-sm font-semibold text-onacc transition enabled:hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          Add to portfolio
+          Ajouter au portefeuille
         </button>
       </div>
     </div>
