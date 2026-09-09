@@ -32,6 +32,7 @@ import {
   ENVELOPE_LABELS,
   markPriceEur,
   positionEnvelope,
+  toEur,
   type TrEnvelope,
 } from "@/lib/tradeRepublicCsv";
 import type { Advice, ChartData, Holding } from "@/lib/types";
@@ -41,11 +42,23 @@ export interface HoldingRow {
   chart: ChartData | null;
   advice: Advice | null;
   error?: string;
+  /** Quote in the asset's own currency - for display next to nativeCurrency. */
   price: number;
+  /** Currency `price` is quoted in. */
+  nativeCurrency: string;
+  /** Same quote converted to EUR - use this for any arithmetic. */
+  priceEur: number;
+  /**
+   * All money below is EUR. Positions are normalised on the way in so totals,
+   * weights and sizing can be summed across currencies; only `price` stays
+   * native, because a share price in dollars is the honest figure to show.
+   */
   marketValue: number;
   costBasis: number;
   pnl: number;
   pnlPct: number;
+  /** Quote currency could not be mapped to EUR - value is unconverted. */
+  fxUnavailable: boolean;
   /** Month-to-date % move from market candles. */
   monthChangePct: number;
   /** Month-to-date P&L in portfolio currency. */
@@ -121,13 +134,21 @@ export function useMarketPortfolio() {
       const advice =
         chart && chart.candles.length >= 30 ? analyze(chart.candles) : null;
       const pending = holding.pendingCashEur ?? 0;
-      const costBasis = holding.avgCost * holding.quantity + pending;
 
-      let price = chart?.price ?? 0;
-      let marketValue = price * holding.quantity;
+      // Trade Republic positions are already denominated in EUR: avgCost and
+      // lastPriceEur come from EUR statements, and markPriceEur() converts the
+      // live quote itself. Everything else is quoted in the asset's own
+      // currency and has to be converted before it can be summed.
+      const isTrPriced =
+        holding.source === "trade-republic" || Boolean(holding.lastPriceEur);
 
-      if (holding.source === "trade-republic" || holding.lastPriceEur) {
-        price = markPriceEur(
+      let price: number;
+      let nativeCurrency: string;
+      let priceEur: number;
+      let fxUnavailable = false;
+
+      if (isTrPriced) {
+        priceEur = markPriceEur(
           holding.preferTrMark ? null : chart?.price,
           holding.preferTrMark ? null : chart?.currency,
           {
@@ -136,10 +157,27 @@ export function useMarketPortfolio() {
           },
           fx,
         );
-        marketValue = price * holding.quantity + pending;
+        price = priceEur;
+        nativeCurrency = "EUR";
       } else {
-        marketValue += pending;
+        price = chart?.price ?? 0;
+        nativeCurrency = chart?.currency ?? "EUR";
+        const converted = toEur(price, nativeCurrency, fx);
+        if (converted == null && price > 0 && nativeCurrency !== "EUR") {
+          // Unmappable currency (e.g. JPY). Better to show the raw number and
+          // say so than to silently fold a wrong figure into the total.
+          fxUnavailable = true;
+        }
+        priceEur = converted ?? price;
       }
+
+      const marketValue = priceEur * holding.quantity + pending;
+
+      // avgCost follows the same rule as price: EUR for TR, native otherwise.
+      const avgCostEur = isTrPriced
+        ? holding.avgCost
+        : (toEur(holding.avgCost, nativeCurrency, fx) ?? holding.avgCost);
+      const costBasis = avgCostEur * holding.quantity + pending;
 
       const pnl = marketValue - costBasis;
       const pnlPct = costBasis === 0 ? 0 : (pnl / costBasis) * 100;
@@ -170,6 +208,9 @@ export function useMarketPortfolio() {
         advice,
         error,
         price,
+        nativeCurrency,
+        priceEur,
+        fxUnavailable,
         marketValue,
         costBasis,
         pnl,
@@ -182,9 +223,11 @@ export function useMarketPortfolio() {
     });
   }, [holdings, charts, errors, fx]);
 
-  const displayCurrency = hasTradeRepublic
-    ? "EUR"
-    : (rows.find((r) => r.chart)?.chart?.currency ?? "EUR");
+  // Every aggregate below is EUR by construction. This used to be the currency
+  // of whichever holding happened to sort first, which meant the total was
+  // labelled with one currency while summing several.
+  const displayCurrency = "EUR";
+  const fxIncomplete = rows.some((r) => r.fxUnavailable);
 
   const totalValue = rows.reduce((a, r) => a + r.marketValue, 0);
   const totalCost = rows.reduce((a, r) => a + r.costBasis, 0);
@@ -332,6 +375,7 @@ export function useMarketPortfolio() {
     refreshedAt,
     refresh,
     displayCurrency,
+    fxIncomplete,
     hasTradeRepublic,
     totalValue,
     totalCost,

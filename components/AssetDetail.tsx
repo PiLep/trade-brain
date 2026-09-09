@@ -27,10 +27,9 @@ export function AssetDetail({
   circuitBlocked?: boolean;
   weightPct?: number;
 }) {
-  const currency =
-    row.holding.source === "trade-republic"
-      ? "EUR"
-      : (row.chart?.currency ?? "EUR");
+  // Quote, average cost and moving averages are all in the asset's own
+  // currency; the position's market value is normalised to EUR.
+  const currency = row.nativeCurrency;
 
   return (
     <div className="animate-rise grid gap-4 sm:gap-5 lg:grid-cols-5">
@@ -114,7 +113,7 @@ export function AssetDetail({
             />
             <Indicator
               label="Valeur"
-              value={formatCurrency(row.marketValue, currency)}
+              value={formatCurrency(row.marketValue, "EUR")}
             />
             <Indicator
               label="P&L"

@@ -203,7 +203,7 @@ function SignalCard({
           {row.holding.symbol}
         </span>
         <span className="w-full text-sm font-semibold tabular text-ink sm:ml-auto sm:w-auto">
-          {formatCurrency(row.price, currency)}
+          {formatCurrency(row.price, row.nativeCurrency)}
         </span>
       </Link>
       <p className="text-[13px] leading-relaxed text-ink2">{reason}</p>
