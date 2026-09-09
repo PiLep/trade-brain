@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:seed": "node scripts/seed-dev.mjs",
+    "dev:reset": "rm -f data/trade-brain.sqlite* && node scripts/migrate.mjs && node scripts/seed-dev.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
