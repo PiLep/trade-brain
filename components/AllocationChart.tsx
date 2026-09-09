@@ -73,10 +73,6 @@ export function AllocationChart({
       <ul>
         {data.map((s, i) => {
           const pct = (s.value / total) * 100;
-          const perf =
-            s.unmanaged || s.pnlPct == null
-              ? null
-              : s.pnlPct;
           return (
             <li
               key={s.symbol}
@@ -88,23 +84,13 @@ export function AllocationChart({
               />
               <div className="min-w-0 flex-1">
                 <div className="text-sm font-semibold text-ink">{s.symbol}</div>
-                <div
-                  className={`mt-0.5 text-xs ${
-                    perf == null
-                      ? "text-ink3"
-                      : perf > 0
-                        ? "text-pos"
-                        : perf < 0
-                          ? "text-neg"
-                          : "text-ink3"
-                  }`}
-                >
-                  {perf == null
-                    ? s.unmanaged
-                      ? "Non géré"
-                      : "—"
-                    : `${formatPercent(perf)} depuis l'achat`}
-                </div>
+                {/* Gain-since-purchase used to sit here. Removed for the same
+                    reason as the header chip: it anchors on entry price, which
+                    says nothing about how much to keep investing. Only the
+                    "no live mark" caveat is worth carrying. */}
+                {s.unmanaged && (
+                  <div className="mt-0.5 text-xs text-ink3">Non géré</div>
+                )}
               </div>
               <div className="text-right">
                 <div className="text-[14.5px] font-semibold text-ink tabular">

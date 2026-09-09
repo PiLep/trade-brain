@@ -9,6 +9,7 @@ import {
   monthLabel,
   monthToDateReturnPct,
 } from "@/lib/month";
+import { adviceForPlan, orientDca, type DcaOrientation } from "@/lib/dcaOrientation";
 import { evaluatePortfolioRegime, type PortfolioRegime } from "@/lib/regime";
 import {
   clearLegacyLocalJournal,
@@ -326,6 +327,30 @@ export function useMarketPortfolio() {
     return suggestPositionSize(row, totalValue, { combinedMarketValue });
   };
 
+  // The DCA verdict is the product's actual answer, so it lives here rather
+  // than in one page: the home summary and the per-plan page must never be
+  // able to disagree about it.
+  const dcaOriented = rows.length || dcaPlans.length
+    ? dcaPlans.map((plan) => ({
+        plan,
+        orientation: orientDca(adviceForPlan(plan, rows)?.recommendation, {
+          circuitActive: circuitBreaker.active,
+          planActive: plan.active,
+        }),
+      }))
+    : [];
+
+  const stanceCounts = dcaOriented
+    .filter((r) => r.plan.active)
+    .reduce(
+      (acc, r) => {
+        const s = r.orientation.stance;
+        if (s in acc) acc[s as keyof typeof acc] += 1;
+        return acc;
+      },
+      { renforcer: 0, maintenir: 0, alleger: 0, inconnu: 0 },
+    );
+
   const regime: PortfolioRegime = evaluatePortfolioRegime(rows, totalValue);
 
   // Journal once per successful market refresh → SQLite via /api/journal.
@@ -375,6 +400,8 @@ export function useMarketPortfolio() {
     refreshedAt,
     refresh,
     displayCurrency,
+    dcaOriented,
+    stanceCounts,
     fxIncomplete,
     hasTradeRepublic,
     totalValue,

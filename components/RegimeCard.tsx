@@ -55,10 +55,14 @@ export function RegimeCard({ regime }: { regime: PortfolioRegime }) {
         {regime.guidance}
       </p>
 
-      <div className="flex flex-col gap-2 border-t border-line pt-3">
-        <p className="m-0 text-[11px] font-medium text-ink3">
+      {/* Justification, not decision: the score and its one-line guidance are
+          what you act on. Folded away so it can be audited on demand without
+          competing with the verdict above it. */}
+      <details className="border-t border-line pt-3 [&[open]>summary]:mb-2">
+        <summary className="touch-target -my-2 flex cursor-pointer list-none items-center py-2 text-[11px] font-medium text-ink3 hover:text-ink2">
           Décomposition du score
-        </p>
+        </summary>
+        <div className="flex flex-col gap-2">
         <BreakdownRow
           label="Prix &gt; MM200"
           detail={formatPercent(regime.aboveSma200Pct, false)}
@@ -74,7 +78,8 @@ export function RegimeCard({ regime }: { regime: PortfolioRegime }) {
           detail={formatPercent(regime.cryptoPct, false)}
           points={tilt}
         />
-      </div>
+        </div>
+      </details>
     </div>
   );
 }
