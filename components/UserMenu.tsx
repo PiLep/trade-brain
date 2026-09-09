@@ -20,9 +20,7 @@ export function UserMenu({ onOpenGlossary, onAddAsset }: UserMenuProps) {
   const { loaded, tenant, tenants, setActive } = useTenant();
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
   const [tenantBusy, setTenantBusy] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
   const root = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -45,20 +43,6 @@ export function UserMenu({ onOpenGlossary, onAddAsset }: UserMenuProps) {
   }, [open]);
 
   const close = () => setOpen(false);
-
-  const addPasskey = async () => {
-    setBusy(true);
-    setMsg(null);
-    const { error } = await authClient.passkey.addPasskey({
-      name: "Trade Brain",
-    });
-    setBusy(false);
-    if (error) {
-      setMsg(error.message || "Échec passkey");
-      return;
-    }
-    setMsg("Passkey enregistrée.");
-  };
 
   const signOut = async () => {
     await authClient.signOut();
@@ -167,7 +151,7 @@ export function UserMenu({ onOpenGlossary, onAddAsset }: UserMenuProps) {
                 })}
               </ul>
               <Link
-                href="/tenants"
+                href="/settings/spaces"
                 onClick={close}
                 className="mt-1 block rounded-[10px] px-2.5 py-2 text-[12.5px] font-semibold text-ink2 hover:bg-chip hover:text-ink"
               >
@@ -177,20 +161,21 @@ export function UserMenu({ onOpenGlossary, onAddAsset }: UserMenuProps) {
           )}
 
           <div className="mt-3 flex flex-col gap-1.5 border-t border-line pt-3">
-            <MenuButton
-              disabled={busy}
-              onClick={() => void addPasskey()}
+            {/* Passkeys, account and display preferences live on their own
+                page: listing, renaming and revoking do not fit in a menu, and
+                keeping only "add" here is what left the app unable to revoke
+                a lost device. */}
+            <Link
+              href="/settings"
+              onClick={close}
+              className="touch-target rounded-pill border border-line px-3 text-left text-[13px] font-semibold leading-[2.6] text-ink2 hover:text-ink"
             >
-              Ajouter une passkey
-            </MenuButton>
+              Réglages
+            </Link>
             <MenuButton danger onClick={() => void signOut()}>
               Se déconnecter
             </MenuButton>
           </div>
-
-          {msg && (
-            <p className="mt-2 px-1 text-[12px] text-ink2">{msg}</p>
-          )}
         </div>
       )}
     </div>

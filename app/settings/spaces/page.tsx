@@ -158,17 +158,13 @@ export default function TenantsPage() {
     );
   }
 
+  // The settings shell already renders the page title and section nav.
   return (
-    <div className="animate-rise mx-auto max-w-2xl space-y-8">
-      <div>
-        <h1 className="text-[22px] font-bold tracking-tight text-ink sm:text-[26px]">
-          Espaces
-        </h1>
-        <p className="mt-1 text-[13.5px] leading-snug text-ink2">
-          Chaque espace isole portefeuille, plans DCA et journal. Invite des
-          membres pour partager un même espace.
-        </p>
-      </div>
+    <div className="space-y-8">
+      <p className="text-[13.5px] leading-snug text-ink2">
+        Chaque espace isole portefeuille, plans DCA et journal. Invite des
+        membres pour partager un même espace.
+      </p>
 
       {(msg || err) && (
         <p

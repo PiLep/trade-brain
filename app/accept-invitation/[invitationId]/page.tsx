@@ -38,7 +38,7 @@ export default function AcceptInvitationPage() {
       setStatus("ok");
       setMessage("Invitation acceptée. Redirection…");
       setTimeout(() => {
-        router.replace("/tenants");
+        router.replace("/settings/spaces");
         router.refresh();
       }, 800);
     };
@@ -85,7 +85,7 @@ export default function AcceptInvitationPage() {
       </p>
       {status === "error" && (
         <Link
-          href="/tenants"
+          href="/settings/spaces"
           className="inline-flex rounded-pill border border-line px-4 py-2 text-[13px] font-semibold text-ink"
         >
           Voir mes espaces

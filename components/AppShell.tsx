@@ -21,7 +21,7 @@ const NAV = [
   { href: "/", label: "Portefeuille" },
   { href: "/signals", label: "Signaux" },
   { href: "/journal", label: "Journal" },
-  { href: "/tenants", label: "Espaces" },
+  { href: "/settings", label: "Réglages" },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
