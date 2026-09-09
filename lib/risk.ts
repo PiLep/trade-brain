@@ -65,8 +65,14 @@ export type PositionSize = {
 
 type RowLike = {
   holding: { id: string; name: string; symbol: string; quantity: number };
+  /** EUR. */
   marketValue: number;
-  price: number;
+  /**
+   * EUR, not the native quote. Sizing divides a EUR risk budget by a
+   * per-unit risk distance, so mixing the two units silently produced wrong
+   * share counts for anything not quoted in euros.
+   */
+  priceEur: number;
   unmanaged: boolean;
   chart: { candles: Candle[] } | null;
   advice: Advice | null;
@@ -187,7 +193,7 @@ export function suggestPositionSize(
     combinedMarketValue?: number;
   } = {},
 ): PositionSize | null {
-  if (totalValue <= 0 || row.price <= 0 || row.unmanaged) return null;
+  if (totalValue <= 0 || row.priceEur <= 0 || row.unmanaged) return null;
 
   const riskPct = opts.riskPct ?? RISK.riskPerTradePct;
   const maxPosPct = opts.maxPositionPct ?? RISK.maxNewPositionPct;
@@ -202,7 +208,7 @@ export function suggestPositionSize(
     return {
       notional: 0,
       units: 0,
-      stop: row.price,
+      stop: row.priceEur,
       riskAmount: 0,
       riskPct,
       currentWeightPct,
@@ -215,21 +221,21 @@ export function suggestPositionSize(
 
   const sma50 = row.advice?.indicators.sma50 ?? null;
   let stop =
-    sma50 != null && sma50 < row.price * 0.995
+    sma50 != null && sma50 < row.priceEur * 0.995
       ? sma50
-      : row.price * 0.97;
+      : row.priceEur * 0.97;
 
   // Ensure a minimum meaningful risk distance (~1.5%).
-  if (row.price - stop < row.price * 0.015) {
-    stop = row.price * 0.985;
+  if (row.priceEur - stop < row.priceEur * 0.015) {
+    stop = row.priceEur * 0.985;
   }
 
-  const riskPerUnit = row.price - stop;
+  const riskPerUnit = row.priceEur - stop;
   if (!(riskPerUnit > 0)) return null;
 
   const riskAmount = totalValue * (riskPct / 100);
   let units = riskAmount / riskPerUnit;
-  let notional = units * row.price;
+  let notional = units * row.priceEur;
 
   const maxNotional = totalValue * (maxPosPct / 100) - exposureValue;
   let capped = false;
@@ -249,7 +255,7 @@ export function suggestPositionSize(
   }
   if (notional > maxNotional) {
     notional = maxNotional;
-    units = notional / row.price;
+    units = notional / row.priceEur;
     capped = true;
   }
 

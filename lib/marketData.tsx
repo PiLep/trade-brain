@@ -48,13 +48,13 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
     [holdings],
   );
 
-  const hasTradeRepublic = holdings.some((h) => h.source === "trade-republic");
-
+  // FX is always needed: holdings quoted in USD/GBP must be converted before
+  // they can be summed with EUR ones. Fetching these only for Trade Republic
+  // portfolios left every other portfolio adding dollars to euros unconverted.
   const requestKey = useMemo(() => {
     if (!symbolsKey) return "";
-    const fx = hasTradeRepublic ? ",EURUSD=X,EURGBP=X,EURJPY=X" : "";
-    return symbolsKey + fx;
-  }, [symbolsKey, hasTradeRepublic]);
+    return symbolsKey + ",EURUSD=X,EURGBP=X,EURJPY=X";
+  }, [symbolsKey]);
 
   const refresh = useCallback(() => {
     forceNext.current = true;

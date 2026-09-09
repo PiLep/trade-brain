@@ -9,6 +9,10 @@ type SeriesRow = {
   holding: { quantity: number };
   chart: { candles: Candle[] } | null;
   unmanaged: boolean;
+  /** Latest quote in its own currency. */
+  price: number;
+  /** Same quote in EUR - their ratio is the conversion factor for this line. */
+  priceEur: number;
 };
 
 export type PortfolioPoint = {
@@ -29,6 +33,12 @@ export function portfolioValueSeries(
     .map((r) => ({
       qty: r.holding.quantity,
       candles: r.chart!.candles,
+      // Historical closes are quoted in the asset's own currency, so summing
+      // them raw mixed dollars into euros. Rescale each line by today's
+      // conversion factor: approximate for past FX, but the series is already
+      // documented as directional only, and a wrong currency mix is worse
+      // than a slightly stale rate.
+      fx: r.price > 0 ? r.priceEur / r.price : 1,
     }));
 
   if (!series.length) return [];
@@ -41,7 +51,7 @@ export function portfolioValueSeries(
     for (const c of slice) {
       const key = new Date(c.t).toISOString().slice(0, 10);
       const prev = byDay.get(key);
-      const contrib = c.close * s.qty;
+      const contrib = c.close * s.qty * s.fx;
       if (prev) {
         prev.sum += contrib;
         prev.n += 1;

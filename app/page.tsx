@@ -380,7 +380,7 @@ export default function PortfolioPage() {
                       </span>
                     )}
                     <span className="ml-auto text-[13.5px] font-semibold tabular text-ink">
-                      {formatCurrency(r.price, displayCurrency)}
+                      {formatCurrency(r.price, r.nativeCurrency)}
                     </span>
                   </Link>
                   <p className="text-[12.5px] leading-snug text-ink2">
@@ -433,10 +433,9 @@ export default function PortfolioPage() {
                 const spark = (r.chart?.candles ?? [])
                   .slice(-30)
                   .map((c) => c.close);
-                const currency =
-                  r.holding.source === "trade-republic"
-                    ? "EUR"
-                    : (r.chart?.currency ?? displayCurrency);
+                // Price is shown in the asset's own currency; the position's
+                // value is always EUR, so it can be compared and summed.
+                const currency = r.nativeCurrency;
                 const hasValue = r.price > 0 || r.marketValue > 0;
                 const rowLoading =
                   chartsLoading && !r.unmanaged && !r.chart;
@@ -495,7 +494,7 @@ export default function PortfolioPage() {
                           {rowLoading ? (
                             <Skeleton className="h-4 w-16" />
                           ) : hasValue ? (
-                            formatCurrency(r.marketValue, currency)
+                            formatCurrency(r.marketValue, displayCurrency)
                           ) : (
                             "—"
                           )}
@@ -592,10 +591,9 @@ export default function PortfolioPage() {
                 const spark = (r.chart?.candles ?? [])
                   .slice(-30)
                   .map((c) => c.close);
-                const currency =
-                  r.holding.source === "trade-republic"
-                    ? "EUR"
-                    : (r.chart?.currency ?? displayCurrency);
+                // Price is shown in the asset's own currency; the position's
+                // value is always EUR, so it can be compared and summed.
+                const currency = r.nativeCurrency;
                 const hasValue = r.price > 0 || r.marketValue > 0;
                 const rowLoading =
                   chartsLoading && !r.unmanaged && !r.chart;
@@ -642,7 +640,7 @@ export default function PortfolioPage() {
                       {rowLoading ? (
                         <Skeleton className="ml-auto h-4 w-16" />
                       ) : hasValue ? (
-                        formatCurrency(r.marketValue, currency)
+                        formatCurrency(r.marketValue, displayCurrency)
                       ) : (
                         "—"
                       )}

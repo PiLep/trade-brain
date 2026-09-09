@@ -694,11 +694,15 @@ export function toEur(
   fx: FxRates,
 ): number | null {
   if (price == null || !(price > 0)) return null;
-  const ccy = (currency || "EUR").toUpperCase();
+  const raw = (currency || "EUR").trim();
+  const ccy = raw.toUpperCase();
+  // Pence, not pounds - Yahoo returns "GBp", EODHD returns "GBX". This test
+  // used to run against the already-uppercased code, so it could never match
+  // and London quotes were valued 100x too high.
+  if (raw === "GBp" || ccy === "GBX") return price / 100 / (fx.eurgbp || 0.85);
   if (ccy === "EUR") return price;
   if (ccy === "USD") return price / (fx.eurusd || 1.1);
   if (ccy === "GBP") return price / (fx.eurgbp || 0.85);
-  if (ccy === "GBp") return price / 100 / (fx.eurgbp || 0.85);
   // JPY equities on TR are EUR-fractional — don't convert Tokyo units.
   if (ccy === "JPY") return null;
   return null;
