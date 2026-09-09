@@ -38,7 +38,7 @@ export function RiskBanner({
           </div>
           <Link
             href="/signals"
-            className="whitespace-nowrap text-[12.5px] font-semibold underline"
+            className="touch-target inline-flex items-center whitespace-nowrap text-[12.5px] font-semibold underline"
           >
             Voir les signaux
           </Link>
@@ -62,7 +62,7 @@ export function RiskBanner({
           </div>
           <Link
             href="/signals"
-            className="whitespace-nowrap text-[12.5px] font-semibold underline"
+            className="touch-target inline-flex items-center whitespace-nowrap text-[12.5px] font-semibold underline"
           >
             Voir les signaux
           </Link>

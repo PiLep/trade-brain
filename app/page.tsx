@@ -334,7 +334,7 @@ export default function PortfolioPage() {
             </span>
             <Link
               href="/dca"
-              className="text-[12.5px] font-semibold text-accent hover:underline"
+              className="touch-target inline-flex items-center text-[12.5px] font-semibold text-accent hover:underline"
             >
               Orientation →
             </Link>
@@ -411,7 +411,7 @@ export default function PortfolioPage() {
           <button
             type="button"
             onClick={resetToSeed}
-            className="ml-auto text-[12.5px] font-semibold text-ink3 hover:text-ink2"
+            className="touch-target ml-auto inline-flex items-center justify-end text-[12.5px] font-semibold text-ink3 hover:text-ink2"
           >
             Réinitialiser l&apos;exemple
           </button>
