@@ -11,6 +11,7 @@ import { ThemeProvider } from "@/lib/theme";
 import { AddAssetDialog } from "@/components/AddAssetDialog";
 import { BottomNav } from "@/components/BottomNav";
 import { GlossaryDrawer } from "@/components/GlossaryDrawer";
+import { Logo } from "@/components/Logo";
 import { ImportCsvDialog } from "@/components/ImportCsvDialog";
 import { PortfolioSkeleton } from "@/components/Skeleton";
 import { TenantBootstrapError } from "@/components/TenantBootstrapError";
@@ -81,8 +82,8 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
             href="/dca"
             className="touch-target flex shrink-0 items-center gap-2 lg:gap-2.5"
           >
-            <span className="grid h-8 w-8 place-items-center rounded-[9px] bg-accent text-[13px] font-bold text-onacc sm:h-[27px] sm:w-[27px]">
-              T
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[9px] bg-accent text-onacc sm:h-[27px] sm:w-[27px]">
+              <Logo size={20} className="sm:h-[17px] sm:w-[17px]" />
             </span>
             <span className="hidden whitespace-nowrap text-[15px] font-bold tracking-tight text-ink sm:inline lg:text-[16.5px]">
               Trade Brain
