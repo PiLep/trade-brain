@@ -1,7 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
-import { adviceForPlan, orientDca } from "@/lib/dcaOrientation";
 import { projectDcaInvested, projectDcaMonth } from "@/lib/dcaProjection";
 import { formatCurrency } from "@/lib/format";
 import { useImportCsvUi } from "@/lib/importCsvUi";
@@ -23,36 +21,15 @@ export default function DcaPage() {
     importMeta,
     csvCoverageLastDate,
     reviewMonthLabel,
+    dcaOriented,
+    stanceCounts,
   } = useMarketPortfolio();
   const { openImportCsv } = useImportCsvUi();
 
   const chartsLoading = fetching && !refreshedAt;
 
-  const oriented = useMemo(
-    () =>
-      dcaPlans.map((plan) => {
-        const advice = adviceForPlan(plan, rows);
-        return {
-          plan,
-          orientation: orientDca(advice?.recommendation, {
-            circuitActive: circuitBreaker.active,
-            planActive: plan.active,
-          }),
-        };
-      }),
-    [dcaPlans, rows, circuitBreaker.active],
-  );
-
-  const stanceCounts = useMemo(() => {
-    const active = oriented.filter((r) => r.plan.active);
-    return {
-      renforcer: active.filter((r) => r.orientation.stance === "renforcer")
-        .length,
-      maintenir: active.filter((r) => r.orientation.stance === "maintenir")
-        .length,
-      alleger: active.filter((r) => r.orientation.stance === "alleger").length,
-    };
-  }, [oriented]);
+  // Both computed once in useMarketPortfolio - see the note there.
+  const oriented = dcaOriented;
 
   if (!loaded) {
     return <DcaSkeleton />;

@@ -13,9 +13,8 @@ import { assetTitle } from "@/lib/labels";
 import type { Recommendation } from "@/lib/types";
 import { useMarketPortfolio } from "@/lib/useMarketPortfolio";
 import { AllocationChart } from "@/components/AllocationChart";
+import { DcaVerdict } from "@/components/DcaVerdict";
 import { envelopeBadge } from "@/components/AssetLabel";
-import { ImportFreshnessChip } from "@/components/ImportFreshnessChip";
-import { PortfolioTrend } from "@/components/PortfolioTrend";
 import { RecommendationBadge } from "@/components/RecommendationBadge";
 import {
   AllocationSkeleton,
@@ -92,9 +91,8 @@ export default function PortfolioPage() {
     refreshedAt,
     refresh,
     displayCurrency,
+    stanceCounts,
     totalValue,
-    totalPnl,
-    totalPnlPct,
     monthPnl,
     monthPnlPct,
     reviewMonthLabel,
@@ -178,33 +176,24 @@ export default function PortfolioPage() {
     return <PortfolioSkeleton />;
   }
 
-  const majLabel = refreshedAt
-    ? fetching
-      ? "rafraîchissement…"
-      : `maj ${formatDateTime(refreshedAt)}`
-    : chartsLoading
-      ? "chargement des cours…"
-      : null;
-
   return (
     <div className="animate-rise space-y-7" aria-busy={fetching}>
+      <DcaVerdict
+        counts={stanceCounts}
+        month={reviewMonthLabel}
+        blocked={circuitBreaker.active}
+        loading={chartsLoading}
+      />
+
       <div className="grid items-stretch gap-6 lg:grid-cols-[1fr_360px]">
         <div className="flex flex-col justify-center gap-4 py-1.5">
           <div className="flex flex-wrap items-center gap-2 text-[12.5px] text-ink3">
+            {/* Position count, refresh timestamp and import freshness were
+                housekeeping: none of them change a DCA decision, and the
+                count is one scroll away in the Positions table. */}
             <span className="min-w-0 leading-relaxed">
-              <span className="font-medium text-ink2">Orientation DCA</span>
-              <span className="mx-1.5 text-ink3/70">·</span>
-              {reviewMonthLabel}
-              <span className="mx-1.5 text-ink3/70">·</span>
-              {holdings.length} position{holdings.length === 1 ? "" : "s"}
-              {majLabel ? (
-                <>
-                  <span className="mx-1.5 text-ink3/70">·</span>
-                  {majLabel}
-                </>
-              ) : null}
+              <span className="font-medium text-ink2">Portefeuille</span>
             </span>
-            <ImportFreshnessChip importedAt={importMeta?.importedAt} />
             <button
               type="button"
               onClick={refresh}
@@ -229,17 +218,15 @@ export default function PortfolioPage() {
               </>
             ) : (
               <>
+                {/* Gain-since-purchase is deliberately absent. It is the
+                    anchor behind the disposition effect - selling winners,
+                    holding losers - and a forward-looking DCA tool should not
+                    put it in front of the decision it is about to give. */}
                 <PnlChip
                   amount={monthPnl}
                   pct={monthPnlPct}
                   currency={displayCurrency}
                   variant="month"
-                />
-                <PnlChip
-                  amount={totalPnl}
-                  pct={totalPnlPct}
-                  currency={displayCurrency}
-                  variant="since"
                 />
               </>
             )}
@@ -294,11 +281,9 @@ export default function PortfolioPage() {
         )}
       </div>
 
-      <PortfolioTrend
-        rows={rows}
-        currency={displayCurrency}
-        loading={chartsLoading}
-      />
+      {/* The 90-day trend block was removed: a sparkline of a number that
+          drives no DCA decision, and it displayed a second total that
+          contradicted the header (it excludes unmanaged lines). */}
 
       <div className="grid gap-5 lg:grid-cols-[5fr_4fr]">
         <section className="rounded-card border border-line bg-card p-4 shadow-soft sm:p-5 lg:p-[22px]">
@@ -383,9 +368,10 @@ export default function PortfolioPage() {
                       {formatCurrency(r.price, r.nativeCurrency)}
                     </span>
                   </Link>
-                  <p className="text-[12.5px] leading-snug text-ink2">
-                    {r.advice!.signals[0]?.detail ?? r.holding.symbol}
-                  </p>
+                  {/* The signal sentence was identical on every row sharing a
+                      recommendation - "price above its 200-day average" under
+                      four "Fort achat" badges says nothing the badge did not.
+                      The reasoning stays one tap away on the asset page. */}
                   {isBuyRec(r.advice?.recommendation) && (
                     <SizeHint
                       size={sizeFor(r)}
