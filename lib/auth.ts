@@ -16,6 +16,7 @@ import {
 } from "@/lib/invites";
 import { getDb } from "@/lib/db";
 import { ensurePersonalOrganization } from "@/lib/tenants";
+import { devBypass, isDevBypassEnabled } from "@/lib/auth-dev-bypass";
 
 // Share one SQLite connection with the rest of the app (tenants, invites).
 // A second better-sqlite3 handle on the same file can make post-OTP org
@@ -80,6 +81,20 @@ function tryProvisionPersonalOrganization(user: {
   }
 }
 
+/**
+ * Invite-only gate. The local dev bypass (DEV_AUTH_BYPASS=1) is the only way
+ * to skip it — never a bare NODE_ENV check, so a stray NODE_ENV in a deployed
+ * environment cannot silently open sign-up.
+ */
+function assertInvited(email: string): void {
+  if (isEmailInvited(email)) return;
+  if (isDevBypassEnabled()) {
+    console.warn(`[auth][dev-bypass] invite gate skipped for ${email}`);
+    return;
+  }
+  throw new APIError("FORBIDDEN", { message: "Invitation requise" });
+}
+
 export const auth = betterAuth({
   database: sqlite,
   baseURL: appUrl,
@@ -92,11 +107,7 @@ export const auth = betterAuth({
     user: {
       create: {
         before: async (user) => {
-          if (!isEmailInvited(user.email)) {
-            throw new APIError("FORBIDDEN", {
-              message: "Invitation requise",
-            });
-          }
+          assertInvited(user.email);
           return { data: user };
         },
         after: async (user) => {
@@ -132,11 +143,7 @@ export const auth = betterAuth({
       // Sign-up only happens for invited emails (hook + send gate).
       async sendVerificationOTP({ email, otp, type }) {
         if (type === "sign-in" || type === "email-verification") {
-          if (!isEmailInvited(email)) {
-            throw new APIError("FORBIDDEN", {
-              message: "Invitation requise",
-            });
-          }
+          assertInvited(email);
         }
         await sendOtpEmail(email, otp);
       },
@@ -165,6 +172,8 @@ export const auth = betterAuth({
       },
     }),
     nextCookies(),
+    // Local-only: mints a session without OTP. Off unless DEV_AUTH_BYPASS=1.
+    ...(isDevBypassEnabled() ? [devBypass()] : []),
   ],
 });
 
