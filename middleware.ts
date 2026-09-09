@@ -4,6 +4,10 @@ import { getSessionCookie } from "better-auth/cookies";
 const PUBLIC = new Set([
   "/sign-in",
   "/forbidden",
+  // Next serves app/icon.tsx at an extensionless /icon, so the matcher's
+  // file-extension exclusion misses it and the favicon 307s to sign-in -
+  // leaving the tab blank on the one page signed-out visitors actually see.
+  "/icon",
 ]);
 
 function isPublic(pathname: string): boolean {
