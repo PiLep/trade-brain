@@ -80,6 +80,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
         <div className="mx-auto flex min-h-14 max-w-shell items-center gap-1.5 px-3 py-1.5 sm:gap-2.5 sm:px-5 lg:gap-3.5 lg:px-5 lg:py-2">
           <Link
             href="/dca"
+            aria-label="Trade Brain — DCA"
             className="touch-target flex shrink-0 items-center gap-2 lg:gap-2.5"
           >
             <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[9px] bg-accent text-onacc sm:h-[27px] sm:w-[27px]">
